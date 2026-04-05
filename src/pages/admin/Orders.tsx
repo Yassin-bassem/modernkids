@@ -7,7 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import logoImage from '@/assets/baby-land-logo.jpg';
+import logoImage from '@/assets/modern-kids-logo.png';
 import { useVersion } from '@/contexts/VersionContext';
 
 interface OrderItem {
@@ -446,8 +446,8 @@ const Orders = () => {
       </head>
       <body>
         <div class="header">
-          ${logoBase64 ? `<img src="${logoBase64}" alt="Babyland Logo" />` : ''}
-          <h1>Babyland</h1>
+          ${logoBase64 ? `<img src="${logoBase64}" alt="Modern Kids Logo" />` : ''}
+          <h1>Modern Kids</h1>
           <p>Kids in Style</p>
           <h2>فاتورة رقم ${order.order_number}</h2>
         </div>
