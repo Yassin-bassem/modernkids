@@ -14,6 +14,35 @@ export type Database = {
   }
   public: {
     Tables: {
+      categories: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          version_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          version_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          version_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "categories_version_id_fkey"
+            columns: ["version_id"]
+            isOneToOne: false
+            referencedRelation: "versions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       customers: {
         Row: {
           address: string | null
@@ -288,6 +317,7 @@ export type Database = {
       }
       products: {
         Row: {
+          category_id: string | null
           code: string
           created_at: string
           description: string | null
@@ -301,6 +331,7 @@ export type Database = {
           version_id: string
         }
         Insert: {
+          category_id?: string | null
           code: string
           created_at?: string
           description?: string | null
@@ -314,6 +345,7 @@ export type Database = {
           version_id: string
         }
         Update: {
+          category_id?: string | null
           code?: string
           created_at?: string
           description?: string | null
@@ -327,6 +359,13 @@ export type Database = {
           version_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "products_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "products_version_id_fkey"
             columns: ["version_id"]

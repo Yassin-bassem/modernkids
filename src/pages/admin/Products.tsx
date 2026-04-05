@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
-import { Plus, Edit2, Trash2, QrCode, Search, Package, Printer, CheckSquare, Square } from 'lucide-react';
+import { Plus, Edit2, Trash2, QrCode, Search, Package, Printer, CheckSquare, Square, Tag, FolderPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import QRCode from 'qrcode';
@@ -20,17 +22,24 @@ interface Product {
   stock_quantity: number;
   low_stock_threshold: number;
   image_url: string | null;
+  category_id: string | null;
 }
 
-// XPrinter XP-370B dimensions in mm (1.57" x 0.79" with 0.05" margins)
-const LABEL_WIDTH_MM = 39.88; // 1.57 inches
-const LABEL_HEIGHT_MM = 20.07; // 0.79 inches
-const MARGIN_MM = 1.27; // 0.05 inches
+interface Category {
+  id: string;
+  name: string;
+  version_id: string;
+}
+
+const LABEL_WIDTH_MM = 39.88;
+const LABEL_HEIGHT_MM = 20.07;
 
 const Products = () => {
   const { activeVersion } = useVersion();
   const [products, setProducts] = useState<Product[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [searchCode, setSearchCode] = useState('');
+  const [selectedCategoryFilter, setSelectedCategoryFilter] = useState<string>('all');
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
@@ -42,6 +51,8 @@ const Products = () => {
   const [printSearchCode, setPrintSearchCode] = useState('');
   const [rangeStart, setRangeStart] = useState('');
   const [rangeEnd, setRangeEnd] = useState('');
+  const [categoryDialogOpen, setCategoryDialogOpen] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState('');
 
   const [formData, setFormData] = useState({
     code: '',
@@ -50,11 +61,13 @@ const Products = () => {
     price: 0,
     stock_quantity: 0,
     low_stock_threshold: 10,
+    category_id: '' as string | null,
   });
 
   useEffect(() => {
     if (activeVersion) {
       loadProducts();
+      loadCategories();
     }
   }, [activeVersion]);
 
@@ -75,16 +88,65 @@ const Products = () => {
     setLoading(false);
   };
 
-  const filteredProducts = searchCode
-    ? products.filter((p) => p.code.toLowerCase().includes(searchCode.toLowerCase()))
-    : products;
+  const loadCategories = async () => {
+    if (!activeVersion) return;
+    const { data, error } = await supabase
+      .from('categories')
+      .select('*')
+      .eq('version_id', activeVersion.id)
+      .order('name');
+
+    if (error) {
+      console.error('Failed to load categories:', error);
+    } else {
+      setCategories(data || []);
+    }
+  };
+
+  const filteredProducts = products.filter((p) => {
+    const matchesSearch = !searchCode || p.code.toLowerCase().includes(searchCode.toLowerCase());
+    const matchesCategory =
+      selectedCategoryFilter === 'all' ||
+      (selectedCategoryFilter === 'uncategorized' ? !p.category_id : p.category_id === selectedCategoryFilter);
+    return matchesSearch && matchesCategory;
+  });
 
   const printFilteredProducts = printSearchCode
-    ? products.filter((p) => 
+    ? products.filter((p) =>
         p.code.toLowerCase().includes(printSearchCode.toLowerCase()) ||
         p.name.toLowerCase().includes(printSearchCode.toLowerCase())
       )
     : products;
+
+  const handleCreateCategory = async () => {
+    if (!newCategoryName.trim() || !activeVersion) return;
+    const { error } = await supabase.from('categories').insert({
+      name: newCategoryName.trim(),
+      version_id: activeVersion.id,
+    });
+    if (error) {
+      if (error.code === '23505') toast.error('هذا التصنيف موجود بالفعل');
+      else toast.error('فشل في إنشاء التصنيف');
+    } else {
+      toast.success('تم إنشاء التصنيف');
+      setNewCategoryName('');
+      setCategoryDialogOpen(false);
+      loadCategories();
+    }
+  };
+
+  const handleDeleteCategory = async (id: string) => {
+    if (!confirm('هل أنت متأكد من حذف هذا التصنيف؟')) return;
+    const { error } = await supabase.from('categories').delete().eq('id', id);
+    if (error) {
+      toast.error('فشل في حذف التصنيف');
+    } else {
+      toast.success('تم حذف التصنيف');
+      loadCategories();
+      if (selectedCategoryFilter === id) setSelectedCategoryFilter('all');
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!activeVersion) return;
@@ -94,24 +156,32 @@ const Products = () => {
       return;
     }
 
+    const submitData = {
+      code: formData.code,
+      name: formData.name,
+      description: formData.description,
+      price: formData.price,
+      stock_quantity: formData.stock_quantity,
+      low_stock_threshold: formData.low_stock_threshold,
+      category_id: formData.category_id || null,
+    };
+
     try {
       if (editingProduct) {
         const { error } = await supabase
           .from('products')
-          .update(formData)
+          .update(submitData)
           .eq('id', editingProduct.id);
-
         if (error) throw error;
         toast.success('تم تحديث المنتج');
       } else {
         const { error } = await supabase.from('products').insert({
-          ...formData,
+          ...submitData,
           version_id: activeVersion.id,
         });
         if (error) throw error;
         toast.success('تم إضافة المنتج');
       }
-
       setDialogOpen(false);
       resetForm();
       loadProducts();
@@ -129,13 +199,13 @@ const Products = () => {
       price: product.price,
       stock_quantity: product.stock_quantity,
       low_stock_threshold: product.low_stock_threshold,
+      category_id: product.category_id || '',
     });
     setDialogOpen(true);
   };
 
   const handleDelete = async (id: string) => {
     if (!confirm('هل أنت متأكد من حذف هذا المنتج؟')) return;
-
     const { error } = await supabase.from('products').delete().eq('id', id);
     if (error) {
       toast.error('فشل في حذف المنتج');
@@ -147,8 +217,7 @@ const Products = () => {
 
   const generateQRDataUrl = async (code: string): Promise<string> => {
     return await QRCode.toDataURL(code, {
-      width: 80,
-      margin: 0,
+      width: 80, margin: 0,
       color: { dark: '#000000', light: '#ffffff' },
       errorCorrectionLevel: 'M',
     });
@@ -179,7 +248,6 @@ const Products = () => {
       toast.error('يرجى اختيار منتج واحد على الأقل');
       return;
     }
-
     try {
       const labelData = await Promise.all(
         Array.from(selectedForPrint).map(async (id) => {
@@ -189,7 +257,6 @@ const Products = () => {
           return { product, qrDataUrl };
         })
       );
-
       const validLabels = labelData.filter(Boolean) as { product: Product; qrDataUrl: string }[];
       printLabels(validLabels);
       setPrintDialogOpen(false);
@@ -234,12 +301,10 @@ const Products = () => {
           return !isNaN(num) && num >= start && num <= end;
         })
         .sort((a, b) => parseInt(a.code.replace(/\D/g, '')) - parseInt(b.code.replace(/\D/g, '')));
-
       if (rangeProducts.length === 0) {
         toast.error('لا توجد منتجات في هذا النطاق');
         return;
       }
-
       const labelData = await Promise.all(
         rangeProducts.map(async (product) => {
           const qrDataUrl = await generateQRDataUrl(product.code);
@@ -274,97 +339,28 @@ const Products = () => {
         <meta charset="UTF-8">
         <title>طباعة الباركود</title>
         <style>
-          @page {
-            size: ${LABEL_WIDTH_MM}mm ${LABEL_HEIGHT_MM}mm;
-            margin: 0;
-          }
-          * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-          }
-          html, body {
-            width: ${LABEL_WIDTH_MM}mm;
-            margin: 0;
-            padding: 0;
-          }
-          body {
-            font-family: Arial, sans-serif;
-          }
+          @page { size: ${LABEL_WIDTH_MM}mm ${LABEL_HEIGHT_MM}mm; margin: 0; }
+          * { margin: 0; padding: 0; box-sizing: border-box; }
+          html, body { width: ${LABEL_WIDTH_MM}mm; margin: 0; padding: 0; }
+          body { font-family: Arial, sans-serif; }
           .label {
-            width: ${LABEL_WIDTH_MM}mm;
-            height: ${LABEL_HEIGHT_MM}mm;
+            width: ${LABEL_WIDTH_MM}mm; height: ${LABEL_HEIGHT_MM}mm;
             padding: 1.1mm 1.4mm 0.9mm 2mm;
-            display: grid;
-            grid-template-columns: 1fr 17.5mm;
-            align-items: center;
-            column-gap: 0.7mm;
-            page-break-after: always;
-            overflow: hidden;
+            display: grid; grid-template-columns: 1fr 17.5mm;
+            align-items: center; column-gap: 0.7mm;
+            page-break-after: always; overflow: hidden;
           }
-          .label:last-child {
-            page-break-after: auto;
-          }
-          .info {
-            min-width: 0;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: flex-end;
-            gap: 0.8mm;
-            text-align: right;
-          }
-          .code {
-            font-size: 9pt;
-            font-weight: bold;
-            color: #000;
-            white-space: nowrap;
-          }
-          .price {
-            font-size: 9pt;
-            font-weight: bold;
-            color: #000;
-            white-space: nowrap;
-          }
-          .qr-section {
-            width: 17.5mm;
-            height: 100%;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: flex-start;
-            padding-top: 0.2mm;
-            gap: 0.4mm;
-          }
-          .qr-code {
-            width: 13mm;
-            height: 13mm;
-            object-fit: contain;
-            image-rendering: crisp-edges;
-          }
-          .name {
-            font-size: 6.8pt;
-            color: #000;
-            text-align: center;
-            direction: rtl;
-            font-weight: bold;
-            line-height: 1.05;
-            width: 16.8mm;
-            min-height: 4.2mm;
-            overflow: hidden;
-            word-break: break-word;
-            display: -webkit-box;
-            -webkit-line-clamp: 2;
-            -webkit-box-orient: vertical;
-          }
-          @media print {
-            body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-          }
+          .label:last-child { page-break-after: auto; }
+          .info { min-width: 0; display: flex; flex-direction: column; justify-content: center; align-items: flex-end; gap: 0.8mm; text-align: right; }
+          .code { font-size: 9pt; font-weight: bold; color: #000; white-space: nowrap; }
+          .price { font-size: 9pt; font-weight: bold; color: #000; white-space: nowrap; }
+          .qr-section { width: 17.5mm; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; padding-top: 0.2mm; gap: 0.4mm; }
+          .qr-code { width: 13mm; height: 13mm; object-fit: contain; image-rendering: crisp-edges; }
+          .name { font-size: 6.8pt; color: #000; text-align: center; direction: rtl; font-weight: bold; line-height: 1.05; width: 16.8mm; min-height: 4.2mm; overflow: hidden; word-break: break-word; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+          @media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
         </style>
       </head>
-      <body>
-        ${labelsHtml}
-      </body>
+      <body>${labelsHtml}</body>
       </html>
     `;
 
@@ -372,19 +368,14 @@ const Products = () => {
     if (printWindow) {
       printWindow.document.write(printHtml);
       printWindow.document.close();
-      setTimeout(() => {
-        printWindow.print();
-      }, 300);
+      setTimeout(() => printWindow.print(), 300);
     }
   };
 
   const toggleSelectProduct = (id: string) => {
     const newSelected = new Set(selectedForPrint);
-    if (newSelected.has(id)) {
-      newSelected.delete(id);
-    } else {
-      newSelected.add(id);
-    }
+    if (newSelected.has(id)) newSelected.delete(id);
+    else newSelected.add(id);
     setSelectedForPrint(newSelected);
   };
 
@@ -398,15 +389,25 @@ const Products = () => {
 
   const resetForm = () => {
     setEditingProduct(null);
-    setFormData({
-      code: '',
-      name: '',
-      description: '',
-      price: 0,
-      stock_quantity: 0,
-      low_stock_threshold: 10,
-    });
+    setFormData({ code: '', name: '', description: '', price: 0, stock_quantity: 0, low_stock_threshold: 10, category_id: '' });
   };
+
+  const getCategoryName = (categoryId: string | null) => {
+    if (!categoryId) return null;
+    return categories.find(c => c.id === categoryId)?.name || null;
+  };
+
+  const getCategoryCounts = () => {
+    const counts: Record<string, number> = { all: products.length, uncategorized: 0 };
+    categories.forEach(c => { counts[c.id] = 0; });
+    products.forEach(p => {
+      if (!p.category_id) counts.uncategorized++;
+      else if (counts[p.category_id] !== undefined) counts[p.category_id]++;
+    });
+    return counts;
+  };
+
+  const categoryCounts = getCategoryCounts();
 
   if (!activeVersion) {
     return <div className="text-center py-12 text-muted-foreground">جاري التحميل...</div>;
@@ -417,6 +418,49 @@ const Products = () => {
       <div className="flex items-center justify-between flex-wrap gap-2">
         <h1 className="text-2xl font-bold">المنتجات</h1>
         <div className="flex gap-2">
+          <Dialog open={categoryDialogOpen} onOpenChange={setCategoryDialogOpen}>
+            <DialogTrigger asChild>
+              <Button variant="outline" className="gap-2">
+                <FolderPlus className="h-4 w-4" />
+                إنشاء تصنيف
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-sm">
+              <DialogHeader>
+                <DialogTitle>إنشاء تصنيف جديد</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div>
+                  <Label>اسم التصنيف</Label>
+                  <Input
+                    value={newCategoryName}
+                    onChange={(e) => setNewCategoryName(e.target.value)}
+                    placeholder="مثال: بيبى، محير، وسط..."
+                    onKeyDown={(e) => e.key === 'Enter' && handleCreateCategory()}
+                  />
+                </div>
+                <Button onClick={handleCreateCategory} className="w-full">إنشاء</Button>
+                {categories.length > 0 && (
+                  <div className="border rounded-lg p-3 space-y-2">
+                    <p className="text-sm font-medium text-muted-foreground">التصنيفات الحالية:</p>
+                    <div className="flex flex-wrap gap-2">
+                      {categories.map((cat) => (
+                        <Badge key={cat.id} variant="secondary" className="gap-1 px-3 py-1">
+                          {cat.name}
+                          <button
+                            onClick={() => handleDeleteCategory(cat.id)}
+                            className="mr-1 text-destructive hover:text-destructive/80"
+                          >
+                            ×
+                          </button>
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </DialogContent>
+          </Dialog>
           <Button variant="outline" className="gap-2" onClick={() => setPrintDialogOpen(true)}>
             <Printer className="h-4 w-4" />
             طباعة الباركود
@@ -436,54 +480,43 @@ const Products = () => {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label>الكود *</Label>
-                    <Input
-                      value={formData.code}
-                      onChange={(e) => setFormData({ ...formData, code: e.target.value })}
-                      dir="ltr"
-                    />
+                    <Input value={formData.code} onChange={(e) => setFormData({ ...formData, code: e.target.value })} dir="ltr" />
                   </div>
                   <div>
                     <Label>السعر *</Label>
-                    <Input
-                      type="number"
-                      value={formData.price}
-                      onChange={(e) => setFormData({ ...formData, price: parseFloat(e.target.value) || 0 })}
-                      dir="ltr"
-                    />
+                    <Input type="number" value={formData.price} onChange={(e) => setFormData({ ...formData, price: parseFloat(e.target.value) || 0 })} dir="ltr" />
                   </div>
                 </div>
                 <div>
                   <Label>الاسم *</Label>
-                  <Input
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  />
+                  <Input value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} />
                 </div>
                 <div>
                   <Label>الوصف</Label>
-                  <Input
-                    value={formData.description}
-                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  />
+                  <Input value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} />
+                </div>
+                <div>
+                  <Label>التصنيف</Label>
+                  <Select value={formData.category_id || 'none'} onValueChange={(val) => setFormData({ ...formData, category_id: val === 'none' ? null : val })}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="اختر التصنيف" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">بدون تصنيف</SelectItem>
+                      {categories.map((cat) => (
+                        <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label>الكمية</Label>
-                    <Input
-                      type="number"
-                      value={formData.stock_quantity}
-                      onChange={(e) => setFormData({ ...formData, stock_quantity: parseInt(e.target.value) || 0 })}
-                      dir="ltr"
-                    />
+                    <Input type="number" value={formData.stock_quantity} onChange={(e) => setFormData({ ...formData, stock_quantity: parseInt(e.target.value) || 0 })} dir="ltr" />
                   </div>
                   <div>
                     <Label>حد التنبيه</Label>
-                    <Input
-                      type="number"
-                      value={formData.low_stock_threshold}
-                      onChange={(e) => setFormData({ ...formData, low_stock_threshold: parseInt(e.target.value) || 10 })}
-                      dir="ltr"
-                    />
+                    <Input type="number" value={formData.low_stock_threshold} onChange={(e) => setFormData({ ...formData, low_stock_threshold: parseInt(e.target.value) || 10 })} dir="ltr" />
                   </div>
                 </div>
                 <Button type="submit" className="w-full">
@@ -494,6 +527,36 @@ const Products = () => {
           </Dialog>
         </div>
       </div>
+
+      {/* Category Filter */}
+      {categories.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          <Badge
+            variant={selectedCategoryFilter === 'all' ? 'default' : 'outline'}
+            className="cursor-pointer px-4 py-1.5 text-sm"
+            onClick={() => setSelectedCategoryFilter('all')}
+          >
+            الكل ({categoryCounts.all})
+          </Badge>
+          {categories.map((cat) => (
+            <Badge
+              key={cat.id}
+              variant={selectedCategoryFilter === cat.id ? 'default' : 'outline'}
+              className="cursor-pointer px-4 py-1.5 text-sm"
+              onClick={() => setSelectedCategoryFilter(cat.id)}
+            >
+              {cat.name} ({categoryCounts[cat.id] || 0})
+            </Badge>
+          ))}
+          <Badge
+            variant={selectedCategoryFilter === 'uncategorized' ? 'default' : 'outline'}
+            className="cursor-pointer px-4 py-1.5 text-sm"
+            onClick={() => setSelectedCategoryFilter('uncategorized')}
+          >
+            بدون تصنيف ({categoryCounts.uncategorized})
+          </Badge>
+        </div>
+      )}
 
       <div className="relative max-w-md">
         <Search className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -529,9 +592,17 @@ const Products = () => {
                       <p className="text-xs text-muted-foreground truncate">{product.description}</p>
                     )}
                     <p className="text-sm text-primary font-bold">{product.price} ج.م</p>
-                    <p className={`text-xs ${product.stock_quantity <= product.low_stock_threshold ? 'text-destructive' : 'text-muted-foreground'}`}>
-                      المخزون: {product.stock_quantity}
-                    </p>
+                    <div className="flex items-center gap-2">
+                      <p className={`text-xs ${product.stock_quantity <= product.low_stock_threshold ? 'text-destructive' : 'text-muted-foreground'}`}>
+                        المخزون: {product.stock_quantity}
+                      </p>
+                      {getCategoryName(product.category_id) && (
+                        <Badge variant="secondary" className="text-xs px-1.5 py-0">
+                          <Tag className="h-3 w-3 ml-1" />
+                          {getCategoryName(product.category_id)}
+                        </Badge>
+                      )}
+                    </div>
                   </div>
                 </div>
                 <div className="flex gap-2 mt-3">
@@ -611,54 +682,24 @@ const Products = () => {
             </div>
             <div className="flex items-center gap-2 p-3 border rounded-lg bg-muted/50">
               <Label className="shrink-0 text-sm">من</Label>
-              <Input
-                type="number"
-                placeholder="مثال: 1000"
-                value={rangeStart}
-                onChange={(e) => setRangeStart(e.target.value)}
-                className="w-28"
-                dir="ltr"
-              />
+              <Input type="number" placeholder="مثال: 1000" value={rangeStart} onChange={(e) => setRangeStart(e.target.value)} className="w-28" dir="ltr" />
               <Label className="shrink-0 text-sm">إلى</Label>
-              <Input
-                type="number"
-                placeholder="مثال: 1010"
-                value={rangeEnd}
-                onChange={(e) => setRangeEnd(e.target.value)}
-                className="w-28"
-                dir="ltr"
-              />
+              <Input type="number" placeholder="مثال: 1010" value={rangeEnd} onChange={(e) => setRangeEnd(e.target.value)} className="w-28" dir="ltr" />
               <Button onClick={printRangeLabels} size="sm" className="shrink-0">
                 <Printer className="h-4 w-4 ml-1" />
                 طباعة
               </Button>
               <Button variant="outline" onClick={toggleSelectAll} className="gap-2">
-                {selectedForPrint.size === printFilteredProducts.length ? (
-                  <CheckSquare className="h-4 w-4" />
-                ) : (
-                  <Square className="h-4 w-4" />
-                )}
+                {selectedForPrint.size === printFilteredProducts.length ? <CheckSquare className="h-4 w-4" /> : <Square className="h-4 w-4" />}
                 تحديد الكل
               </Button>
-              <Button variant="outline" onClick={printAllLabels}>
-                طباعة الكل ({printFilteredProducts.length})
-              </Button>
-              <Button onClick={printSelectedLabels} disabled={selectedForPrint.size === 0}>
-                طباعة المحدد ({selectedForPrint.size})
-              </Button>
+              <Button variant="outline" onClick={printAllLabels}>طباعة الكل ({printFilteredProducts.length})</Button>
+              <Button onClick={printSelectedLabels} disabled={selectedForPrint.size === 0}>طباعة المحدد ({selectedForPrint.size})</Button>
             </div>
             <div className="max-h-60 overflow-y-auto border rounded-lg">
               {printFilteredProducts.map((product) => (
-                <div
-                  key={product.id}
-                  className="flex items-center gap-3 p-3 hover:bg-muted cursor-pointer border-b last:border-b-0"
-                  onClick={() => toggleSelectProduct(product.id)}
-                >
-                  {selectedForPrint.has(product.id) ? (
-                    <CheckSquare className="h-5 w-5 text-primary" />
-                  ) : (
-                    <Square className="h-5 w-5 text-muted-foreground" />
-                  )}
+                <div key={product.id} className="flex items-center gap-3 p-3 hover:bg-muted cursor-pointer border-b last:border-b-0" onClick={() => toggleSelectProduct(product.id)}>
+                  {selectedForPrint.has(product.id) ? <CheckSquare className="h-5 w-5 text-primary" /> : <Square className="h-5 w-5 text-muted-foreground" />}
                   <div className="flex-1">
                     <p className="font-medium">{product.name}</p>
                     <p className="text-sm text-muted-foreground">#{product.code}</p>
