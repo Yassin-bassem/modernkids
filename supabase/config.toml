@@ -1,4 +1,1 @@
-project_id = "kurvzcokgvvyzgosjzni"
-
-[functions.send-telegram-notification]
-verify_jwt = false
+project_id = "sgimkqfttbwymfavafzg"
