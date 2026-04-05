@@ -438,10 +438,10 @@ const Orders = () => {
           .info p { margin: 5px 0; }
           table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
           th, td { border: 1px solid #ddd; padding: 10px; text-align: right; }
-          th { background: #00bfff; color: white; }
+          th { background: #3DA9E2; color: white; }
           .totals { text-align: left; }
           .totals p { margin: 5px 0; }
-          .totals .total { font-size: 1.2em; font-weight: bold; color: #00bfff; }
+          .totals .total { font-size: 1.2em; font-weight: bold; color: #3DA9E2; }
         </style>
       </head>
       <body>
