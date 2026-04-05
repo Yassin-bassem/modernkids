@@ -11,7 +11,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import Header from '@/components/Header';
 import ProductImage from '@/components/ProductImage';
-import logoImage from '@/assets/babyland-logo.jpg';
+import logoImage from '@/assets/modern-kids-logo.png';
 
 // Old customers data - format: name | shopName | address | phone
 const oldCustomersData = [
@@ -350,7 +350,7 @@ const Checkout = () => {
       const orderNumber = nextOrderNum || 1;
 
       // Check if staff member is logged in
-      const staffSession = sessionStorage.getItem('babyland_staff');
+      const staffSession = sessionStorage.getItem('modernkids_staff');
       const staffData = staffSession ? JSON.parse(staffSession) : null;
 
       // Create order
@@ -481,7 +481,7 @@ const Checkout = () => {
   const generateWhatsAppInvoice = () => {
     if (!orderNumber || !orderDetails) return '';
     
-    let invoiceText = `🧸 *Babyland - فاتورة رقم ${orderNumber}*\n\n`;
+    let invoiceText = `🛍️ *Modern Kids - فاتورة رقم ${orderNumber}*\n\n`;
     invoiceText += `👤 *العميل:* ${orderDetails.customerName}\n`;
     if (orderDetails.shopName) invoiceText += `🏪 *المحل:* ${orderDetails.shopName}\n`;
     invoiceText += `📞 *الهاتف:* ${orderDetails.phone}\n`;
@@ -509,7 +509,7 @@ const Checkout = () => {
       invoiceText += `💵 *العربون (${methodLabel}):* -${orderDetails.depositAmount.toFixed(2)} ج.م\n`;
     }
     invoiceText += `✅ *المطلوب:* ${orderDetails.total.toFixed(2)} ج.م\n\n`;
-    invoiceText += `شكراً لتعاملكم مع Babyland 🎀`;
+    invoiceText += `شكراً لتعاملكم مع Modern Kids 🎀`;
     
     return invoiceText;
   };
@@ -804,7 +804,7 @@ const Checkout = () => {
                 {formData.depositMethod === 'vodafone_cash' && (
                   <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-800">
                     <p className="font-bold mb-2">رقم فودافون كاش:</p>
-                    <p className="text-2xl font-bold" dir="ltr">01001608562</p>
+                    <p className="text-2xl font-bold" dir="ltr">01050990888</p>
                   </div>
                 )}
 
