@@ -6,8 +6,8 @@
 
 @layer base {
   :root {
-    /* Babyland Brand Colors - Playful Blue & Pink Theme */
-    --background: 200 20% 98%;
+    /* Modern Kids Brand Colors - Blue & Orange Theme */
+    --background: 210 20% 98%;
     --foreground: 210 25% 15%;
 
     --card: 0 0% 100%;
@@ -16,43 +16,43 @@
     --popover: 0 0% 100%;
     --popover-foreground: 210 25% 15%;
 
-    /* Primary - Cyan/Turquoise Blue */
-    --primary: 195 100% 50%;
+    /* Primary - Sky Blue (from logo) */
+    --primary: 202 73% 56%;
     --primary-foreground: 0 0% 100%;
 
-    /* Secondary - Soft Pink */
-    --secondary: 330 85% 65%;
+    /* Secondary - Orange (from logo) */
+    --secondary: 37 91% 55%;
     --secondary-foreground: 0 0% 100%;
 
-    --muted: 200 15% 92%;
+    --muted: 210 15% 92%;
     --muted-foreground: 210 15% 45%;
 
-    /* Accent - Light Pink */
-    --accent: 330 70% 92%;
-    --accent-foreground: 330 85% 45%;
+    /* Accent - Light Orange */
+    --accent: 37 80% 92%;
+    --accent-foreground: 37 91% 35%;
 
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 200 20% 88%;
-    --input: 200 20% 88%;
-    --ring: 195 100% 50%;
+    --border: 210 20% 88%;
+    --input: 210 20% 88%;
+    --ring: 202 73% 56%;
 
     --radius: 1rem;
 
-    /* Custom Babyland Colors */
-    --baby-blue: 195 100% 50%;
-    --baby-blue-light: 195 100% 95%;
-    --baby-pink: 330 85% 65%;
-    --baby-pink-light: 330 70% 95%;
-    --baby-gradient: linear-gradient(135deg, hsl(195, 100%, 50%) 0%, hsl(330, 85%, 65%) 100%);
-    --baby-gradient-soft: linear-gradient(135deg, hsl(195, 100%, 95%) 0%, hsl(330, 70%, 95%) 100%);
+    /* Custom Modern Kids Colors */
+    --baby-blue: 202 73% 56%;
+    --baby-blue-light: 202 73% 95%;
+    --baby-pink: 37 91% 55%;
+    --baby-pink-light: 37 80% 95%;
+    --baby-gradient: linear-gradient(135deg, hsl(202, 73%, 56%) 0%, hsl(37, 91%, 55%) 100%);
+    --baby-gradient-soft: linear-gradient(135deg, hsl(202, 73%, 95%) 0%, hsl(37, 80%, 95%) 100%);
 
     /* Shadows */
-    --shadow-sm: 0 2px 8px -2px hsl(195 100% 50% / 0.15);
-    --shadow-md: 0 8px 24px -4px hsl(195 100% 50% / 0.2);
-    --shadow-lg: 0 16px 48px -8px hsl(195 100% 50% / 0.25);
-    --shadow-pink: 0 8px 24px -4px hsl(330 85% 65% / 0.3);
+    --shadow-sm: 0 2px 8px -2px hsl(202 73% 56% / 0.15);
+    --shadow-md: 0 8px 24px -4px hsl(202 73% 56% / 0.2);
+    --shadow-lg: 0 16px 48px -8px hsl(202 73% 56% / 0.25);
+    --shadow-pink: 0 8px 24px -4px hsl(37 91% 55% / 0.3);
 
     --sidebar-background: 0 0% 98%;
     --sidebar-foreground: 240 5.3% 26.1%;
@@ -61,37 +61,37 @@
     --sidebar-accent: 240 4.8% 95.9%;
     --sidebar-accent-foreground: 240 5.9% 10%;
     --sidebar-border: 220 13% 91%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --sidebar-ring: 202 73% 56%;
   }
 
   .dark {
     --background: 210 25% 8%;
-    --foreground: 200 20% 95%;
+    --foreground: 210 20% 95%;
 
     --card: 210 25% 12%;
-    --card-foreground: 200 20% 95%;
+    --card-foreground: 210 20% 95%;
 
     --popover: 210 25% 12%;
-    --popover-foreground: 200 20% 95%;
+    --popover-foreground: 210 20% 95%;
 
-    --primary: 195 100% 55%;
+    --primary: 202 73% 60%;
     --primary-foreground: 210 25% 8%;
 
-    --secondary: 330 75% 55%;
+    --secondary: 37 85% 50%;
     --secondary-foreground: 0 0% 100%;
 
     --muted: 210 25% 18%;
-    --muted-foreground: 200 15% 60%;
+    --muted-foreground: 210 15% 60%;
 
-    --accent: 330 60% 25%;
-    --accent-foreground: 330 70% 85%;
+    --accent: 37 60% 25%;
+    --accent-foreground: 37 70% 85%;
 
     --destructive: 0 62% 45%;
     --destructive-foreground: 0 0% 100%;
 
     --border: 210 25% 20%;
     --input: 210 25% 20%;
-    --ring: 195 100% 55%;
+    --ring: 202 73% 60%;
 
     --sidebar-background: 240 5.9% 10%;
     --sidebar-foreground: 240 4.8% 95.9%;
@@ -100,7 +100,7 @@
     --sidebar-accent: 240 3.7% 15.9%;
     --sidebar-accent-foreground: 240 4.8% 95.9%;
     --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --sidebar-ring: 202 73% 60%;
   }
 }
 
