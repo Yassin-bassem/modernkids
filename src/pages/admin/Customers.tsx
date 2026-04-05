@@ -1,8 +1,11 @@
 import { useEffect, useState } from 'react';
-import { Users, Download, UserPlus } from 'lucide-react';
+import { Users, Download, UserPlus, Plus, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useVersion } from '@/contexts/VersionContext';
@@ -21,6 +24,14 @@ const Customers = () => {
   const { activeVersion } = useVersion();
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
+  const [addDialogOpen, setAddDialogOpen] = useState(false);
+  const [addLoading, setAddLoading] = useState(false);
+  const [newCustomer, setNewCustomer] = useState({
+    name: '',
+    shop_name: '',
+    phone: '',
+    address: '',
+  });
 
   useEffect(() => {
     if (activeVersion) {
@@ -43,6 +54,46 @@ const Customers = () => {
       setCustomers(data || []);
     }
     setLoading(false);
+  };
+
+  const handleAddCustomer = async () => {
+    if (!activeVersion) return;
+    if (!newCustomer.name.trim() || !newCustomer.phone.trim()) {
+      toast.error('الاسم ورقم الهاتف مطلوبين');
+      return;
+    }
+
+    setAddLoading(true);
+    const { error } = await supabase.from('customers').insert({
+      name: newCustomer.name.trim(),
+      shop_name: newCustomer.shop_name.trim() || null,
+      phone: newCustomer.phone.trim(),
+      address: newCustomer.address.trim() || null,
+      is_new: false,
+      version_id: activeVersion.id,
+    });
+
+    setAddLoading(false);
+
+    if (error) {
+      toast.error('فشل في إضافة العميل');
+    } else {
+      toast.success('تم إضافة العميل بنجاح');
+      setNewCustomer({ name: '', shop_name: '', phone: '', address: '' });
+      setAddDialogOpen(false);
+      loadCustomers();
+    }
+  };
+
+  const handleDeleteCustomer = async (id: string, name: string) => {
+    if (!confirm(`هل تريد حذف العميل "${name}"؟`)) return;
+    const { error } = await supabase.from('customers').delete().eq('id', id);
+    if (error) {
+      toast.error('فشل في حذف العميل');
+    } else {
+      toast.success('تم حذف العميل');
+      setCustomers((prev) => prev.filter((c) => c.id !== id));
+    }
   };
 
   const newCustomers = customers.filter((c) => c.is_new);
@@ -72,7 +123,7 @@ const Customers = () => {
     URL.revokeObjectURL(url);
   };
 
-  const CustomerTable = ({ data, showExport, exportFilename }: { data: Customer[]; showExport?: boolean; exportFilename?: string }) => (
+  const CustomerTable = ({ data, showExport, exportFilename, showDelete }: { data: Customer[]; showExport?: boolean; exportFilename?: string; showDelete?: boolean }) => (
     <>
       {showExport && data.length > 0 && (
         <div className="mb-4">
@@ -101,6 +152,7 @@ const Customers = () => {
                 <th className="p-3 text-right">الهاتف</th>
                 <th className="p-3 text-right">العنوان</th>
                 <th className="p-3 text-right">التاريخ</th>
+                {showDelete && <th className="p-3 text-right">حذف</th>}
               </tr>
             </thead>
             <tbody>
@@ -111,6 +163,18 @@ const Customers = () => {
                   <td className="p-3" dir="ltr">{customer.phone}</td>
                   <td className="p-3">{customer.address || '-'}</td>
                   <td className="p-3">{new Date(customer.created_at).toLocaleDateString('ar-EG')}</td>
+                  {showDelete && (
+                    <td className="p-3">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-destructive hover:text-destructive"
+                        onClick={() => handleDeleteCustomer(customer.id, customer.name)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>
@@ -159,11 +223,66 @@ const Customers = () => {
           </TabsContent>
           <TabsContent value="old" className="mt-6">
             <Card>
-              <CardHeader>
+              <CardHeader className="flex flex-row items-center justify-between">
                 <CardTitle className="text-lg">العملاء القدامى</CardTitle>
+                <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button size="sm" className="gap-2">
+                      <Plus className="h-4 w-4" />
+                      إضافة عميل
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>إضافة عميل قديم</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4 mt-4">
+                      <div className="space-y-2">
+                        <Label>الاسم *</Label>
+                        <Input
+                          value={newCustomer.name}
+                          onChange={(e) => setNewCustomer((p) => ({ ...p, name: e.target.value }))}
+                          placeholder="اسم العميل"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>اسم المحل</Label>
+                        <Input
+                          value={newCustomer.shop_name}
+                          onChange={(e) => setNewCustomer((p) => ({ ...p, shop_name: e.target.value }))}
+                          placeholder="اسم المحل"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>رقم الهاتف *</Label>
+                        <Input
+                          value={newCustomer.phone}
+                          onChange={(e) => setNewCustomer((p) => ({ ...p, phone: e.target.value }))}
+                          placeholder="رقم الهاتف"
+                          dir="ltr"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>العنوان</Label>
+                        <Input
+                          value={newCustomer.address}
+                          onChange={(e) => setNewCustomer((p) => ({ ...p, address: e.target.value }))}
+                          placeholder="العنوان"
+                        />
+                      </div>
+                      <Button
+                        onClick={handleAddCustomer}
+                        disabled={addLoading}
+                        className="w-full"
+                      >
+                        {addLoading ? 'جاري الإضافة...' : 'إضافة العميل'}
+                      </Button>
+                    </div>
+                  </DialogContent>
+                </Dialog>
               </CardHeader>
               <CardContent>
-                <CustomerTable data={oldCustomers} showExport exportFilename="old-customers" />
+                <CustomerTable data={oldCustomers} showExport exportFilename="old-customers" showDelete />
               </CardContent>
             </Card>
           </TabsContent>
