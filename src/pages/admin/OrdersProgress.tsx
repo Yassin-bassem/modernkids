@@ -1,18 +1,20 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useVersion } from '@/contexts/VersionContext';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { Check, Package, Search, ChevronDown, ChevronUp } from 'lucide-react';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Check, Package, Search, ChevronDown, ChevronUp, Printer } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import logoImage from '@/assets/modern-kids-logo.png';
 
 interface OrderItem {
   id: string;
   product_name: string;
   product_code: string;
+  product_description: string | null;
   quantity: number;
   price: number;
   is_delivered: boolean;
@@ -24,11 +26,26 @@ interface Order {
   customer_name: string;
   phone: string;
   shop_name: string | null;
+  address: string | null;
+  extra_info: string | null;
+  deposit_amount: number;
+  deposit_method: string | null;
   total: number;
   created_at: string;
   status: string;
   items: OrderItem[];
 }
+
+const getDescriptionMultiplier = (description: string | null): number => {
+  if (!description) return 1;
+  const match = description.match(/(\d+)\/(\d+)/);
+  return match ? parseInt(match[2]) : 1;
+};
+
+const calculateItemTotal = (item: OrderItem): number => {
+  const multiplier = getDescriptionMultiplier(item.product_description);
+  return item.price * item.quantity * multiplier;
+};
 
 const OrdersProgress = () => {
   const { activeVersion } = useVersion();
@@ -45,7 +62,7 @@ const OrdersProgress = () => {
 
     const { data: ordersData, error: ordersError } = await supabase
       .from('orders')
-      .select('id, order_number, customer_name, phone, shop_name, total, created_at, status')
+      .select('id, order_number, customer_name, phone, shop_name, address, extra_info, deposit_amount, deposit_method, total, created_at, status')
       .eq('version_id', activeVersion.id)
       .order('order_number', { ascending: false });
 
@@ -57,7 +74,7 @@ const OrdersProgress = () => {
 
     const { data: itemsData, error: itemsError } = await supabase
       .from('order_items')
-      .select('id, order_id, product_name, product_code, quantity, price, is_delivered')
+      .select('id, order_id, product_name, product_code, product_description, quantity, price, is_delivered')
       .eq('version_id', activeVersion.id);
 
     if (itemsError) {
@@ -74,6 +91,7 @@ const OrdersProgress = () => {
 
     const combined: Order[] = (ordersData || []).map((o: any) => ({
       ...o,
+      deposit_amount: o.deposit_amount || 0,
       items: itemsByOrder[o.id] || [],
     }));
 
@@ -131,6 +149,139 @@ const OrdersProgress = () => {
       )
     );
     toast({ title: 'تم', description: 'تم تحديد جميع المنتجات كمُسلّمة' });
+  };
+
+  const getLogoBase64 = (): Promise<string> => {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.naturalWidth;
+        canvas.height = img.naturalHeight;
+        const ctx = canvas.getContext('2d');
+        ctx?.drawImage(img, 0, 0);
+        resolve(canvas.toDataURL('image/jpeg', 0.9));
+      };
+      img.onerror = () => resolve('');
+      img.src = logoImage;
+    });
+  };
+
+  const printDeliveredInvoice = async (order: Order) => {
+    const deliveredItems = order.items.filter((i) => i.is_delivered);
+    if (deliveredItems.length === 0) {
+      toast({ title: 'تنبيه', description: 'لا توجد منتجات مُسلّمة لطباعتها', variant: 'destructive' });
+      return;
+    }
+
+    const logoBase64 = await getLogoBase64();
+
+    const calculatedSubtotal = deliveredItems.reduce((sum, item) => sum + calculateItemTotal(item), 0);
+    const calculatedTotal = calculatedSubtotal - order.deposit_amount;
+
+    const invoiceHtml = `
+      <!DOCTYPE html>
+      <html dir="rtl" lang="ar">
+      <head>
+        <meta charset="UTF-8">
+        <title>فاتورة المُسلّم - طلب رقم ${order.order_number}</title>
+        <style>
+          body { font-family: 'Cairo', Arial, sans-serif; padding: 20px; direction: rtl; }
+          .header { text-align: center; margin-bottom: 30px; }
+          .header img { width: 150px; height: auto; object-fit: contain; margin-bottom: 10px; }
+          .header h1 { color: #00bfff; margin: 0; }
+          .header p { color: #ff69b4; }
+          .info { margin-bottom: 20px; }
+          .info p { margin: 5px 0; }
+          table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+          th, td { border: 1px solid #ddd; padding: 10px; text-align: right; }
+          th { background: #3DA9E2; color: white; }
+          .totals { text-align: left; }
+          .totals p { margin: 5px 0; }
+          .totals .total { font-size: 1.2em; font-weight: bold; color: #3DA9E2; }
+          .badge { display: inline-block; background: #16a34a; color: white; padding: 2px 10px; border-radius: 12px; font-size: 0.85em; margin-right: 8px; }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          ${logoBase64 ? `<img src="${logoBase64}" alt="Modern Kids Logo" />` : ''}
+          <h1>Modern Kids</h1>
+          <p>Kids in Style</p>
+          <h2>فاتورة المُسلّم - طلب رقم ${order.order_number}</h2>
+          <span class="badge">المنتجات المُسلّمة فقط (${deliveredItems.length}/${order.items.length})</span>
+        </div>
+        <div class="info">
+          <p><strong>العميل:</strong> ${order.customer_name}</p>
+          ${order.shop_name ? `<p><strong>المحل:</strong> ${order.shop_name}</p>` : ''}
+          <p><strong>الهاتف:</strong> ${order.phone}</p>
+          ${order.address ? `<p><strong>العنوان:</strong> ${order.address}</p>` : ''}
+          <p><strong>التاريخ:</strong> ${new Date(order.created_at).toLocaleDateString('ar-EG')}</p>
+          ${order.extra_info ? `<p><strong>ملاحظات:</strong> ${order.extra_info}</p>` : ''}
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>الكود</th>
+              <th>المنتج</th>
+              <th>السعر</th>
+              <th>الكمية</th>
+              <th>الإجمالي</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${[...deliveredItems].sort((a, b) => a.product_code.localeCompare(b.product_code, undefined, { numeric: true })).map(item => {
+              let displayQuantity = item.quantity;
+              const multiplier = getDescriptionMultiplier(item.product_description);
+              if (multiplier > 1) {
+                displayQuantity = item.quantity * multiplier;
+              }
+              const itemTotal = calculateItemTotal(item);
+              return `
+                <tr>
+                  <td>${item.product_code}</td>
+                  <td>${item.product_name}</td>
+                  <td>${item.price} ج.م</td>
+                  <td>${displayQuantity}</td>
+                  <td>${itemTotal.toFixed(2)} ج.م</td>
+                </tr>
+              `;
+            }).join('')}
+          </tbody>
+        </table>
+        <div class="totals">
+          <p>الإجمالي الفرعي: ${calculatedSubtotal.toFixed(2)} ج.م</p>
+          ${order.deposit_amount > 0 ? `<p>العربون (${order.deposit_method === 'instapay' ? 'InstaPay' : order.deposit_method === 'vodafone_cash' ? 'فودافون كاش' : 'كاش'}): -${order.deposit_amount.toFixed(2)} ج.م</p>` : ''}
+          <p class="total">المطلوب: ${calculatedTotal.toFixed(2)} ج.م</p>
+        </div>
+      </body>
+      </html>
+    `;
+
+    const isMobile = /Android|iPhone|iPad|iPod|webOS|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
+    if (!isMobile) {
+      const printWindow = window.open('', '_blank');
+      if (printWindow) {
+        printWindow.document.write(invoiceHtml);
+        printWindow.document.close();
+        setTimeout(() => {
+          printWindow.print();
+        }, 500);
+        return;
+      }
+    }
+
+    const mobileHtml = invoiceHtml.replace('</body>', `
+      <div style="position:fixed;bottom:0;left:0;right:0;display:flex;gap:10px;padding:12px;background:#fff;border-top:2px solid #000;z-index:10000;justify-content:center;">
+        <button onclick="window.print()" style="flex:1;max-width:200px;padding:12px;font-size:16px;font-weight:bold;background:#2563eb;color:#fff;border:none;border-radius:8px;cursor:pointer;">🖨️ طباعة</button>
+        <button onclick="window.close()" style="flex:1;max-width:200px;padding:12px;font-size:16px;font-weight:bold;background:#ef4444;color:#fff;border:none;border-radius:8px;cursor:pointer;">✕ إغلاق</button>
+      </div>
+    </body>`);
+
+    const blob = new Blob([mobileHtml], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    window.open(url, '_blank');
   };
 
   const filtered = orders.filter((o) => {
@@ -233,12 +384,20 @@ const OrdersProgress = () => {
                       <span className="text-sm text-muted-foreground">
                         {order.phone} · {new Date(order.created_at).toLocaleDateString('ar-EG')}
                       </span>
-                      {!finished && (
-                        <Button size="sm" variant="outline" onClick={() => markAllDelivered(order)} className="text-green-600 border-green-500/50">
-                          <Check className="h-4 w-4 ml-1" />
-                          تحديد الكل كمُسلّم
-                        </Button>
-                      )}
+                      <div className="flex gap-2">
+                        {deliveredCount > 0 && (
+                          <Button size="sm" variant="outline" onClick={() => printDeliveredInvoice(order)} className="text-blue-600 border-blue-500/50">
+                            <Printer className="h-4 w-4 ml-1" />
+                            طباعة فاتورة المُسلّم
+                          </Button>
+                        )}
+                        {!finished && (
+                          <Button size="sm" variant="outline" onClick={() => markAllDelivered(order)} className="text-green-600 border-green-500/50">
+                            <Check className="h-4 w-4 ml-1" />
+                            تحديد الكل كمُسلّم
+                          </Button>
+                        )}
+                      </div>
                     </div>
                     <div className="space-y-2">
                       {order.items.map((item) => (
