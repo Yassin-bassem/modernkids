@@ -244,20 +244,69 @@ const Checkout = () => {
     return normalized;
   };
 
-  // Only show customer when exact phone match is found
+  // Search DB customers
+  const [dbCustomers, setDbCustomers] = useState<typeof oldCustomersData>([]);
+  
+  useEffect(() => {
+    if (!customerSearch.trim()) {
+      setDbCustomers([]);
+      return;
+    }
+    const searchNormalized = normalizePhone(customerSearch);
+    if (searchNormalized.length < 6) {
+      setDbCustomers([]);
+      return;
+    }
+
+    const fetchDbCustomers = async () => {
+      const { data } = await supabase
+        .from('customers')
+        .select('name, shop_name, address, phone')
+        .ilike('phone', `%${searchNormalized.slice(-9)}%`)
+        .limit(20);
+      
+      if (data) {
+        setDbCustomers(data.map(c => ({
+          name: c.name,
+          shopName: c.shop_name || '',
+          address: c.address || '',
+          phone: c.phone,
+        })));
+      }
+    };
+    
+    const timer = setTimeout(fetchDbCustomers, 300);
+    return () => clearTimeout(timer);
+  }, [customerSearch]);
+
+  // Combine hardcoded + DB customers, deduplicate by phone
   const filteredCustomers = useMemo(() => {
     if (!customerSearch.trim()) return [];
     const searchNormalized = normalizePhone(customerSearch);
     
-    // Must have at least 9 digits for a valid phone search
-    if (searchNormalized.length < 9) return [];
+    if (searchNormalized.length < 6) return [];
     
-    return oldCustomersData.filter((c) => {
+    const hardcodedMatches = oldCustomersData.filter((c) => {
       const customerPhoneNormalized = normalizePhone(c.phone);
-      return customerPhoneNormalized === searchNormalized ||
-             c.name.toLowerCase() === customerSearch.toLowerCase();
+      return customerPhoneNormalized.includes(searchNormalized) ||
+             searchNormalized.includes(customerPhoneNormalized) ||
+             c.name.toLowerCase().includes(customerSearch.toLowerCase());
     });
-  }, [customerSearch]);
+
+    // Merge and deduplicate
+    const seen = new Set<string>();
+    const combined: typeof oldCustomersData = [];
+    
+    for (const c of [...hardcodedMatches, ...dbCustomers]) {
+      const key = normalizePhone(c.phone);
+      if (!seen.has(key)) {
+        seen.add(key);
+        combined.push(c);
+      }
+    }
+    
+    return combined;
+  }, [customerSearch, dbCustomers]);
 
   const handleOldCustomerToggle = () => {
     setIsOldCustomer(!isOldCustomer);
