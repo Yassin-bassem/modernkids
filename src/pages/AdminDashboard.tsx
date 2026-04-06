@@ -1,42 +1,67 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useNavigate, Link, Outlet, useLocation } from 'react-router-dom';
-import { Package, ShoppingCart, Users, BarChart3, LogOut, Wallet, SearchCode, FileText, ImagePlus, Menu, X, Bell, UserCog, ClipboardList } from 'lucide-react';
+import { Package, ShoppingCart, Users, BarChart3, LogOut, Wallet, SearchCode, FileText, ImagePlus, Menu, X, Bell, UserCog, ClipboardList, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import modernKidsLogo from '@/assets/modern-kids-logo.png';
 import { VersionProvider } from '@/contexts/VersionContext';
 import VersionSelector from '@/components/VersionSelector';
 
-const navItems = [
-  { path: '/admin/dashboard', label: 'الإحصائيات', icon: BarChart3 },
-  { path: '/admin/dashboard/products', label: 'المنتجات', icon: Package },
-  { path: '/admin/dashboard/orders', label: 'الطلبات', icon: ShoppingCart },
-  { path: '/admin/dashboard/customers', label: 'العملاء', icon: Users },
-  { path: '/admin/dashboard/deposits', label: 'العربون', icon: Wallet },
-  { path: '/admin/dashboard/search-by-code', label: 'البحث بالكود', icon: SearchCode },
-  { path: '/admin/dashboard/customer-extra-info', label: 'معلومات إضافية', icon: FileText },
-  { path: '/admin/dashboard/product-images', label: 'صور المنتجات', icon: ImagePlus },
-  { path: '/admin/dashboard/stock-alerts', label: 'تنبيهات المخزون', icon: Bell },
-  { path: '/admin/dashboard/product-report', label: 'تقرير المنتجات', icon: ClipboardList },
-  { path: '/admin/dashboard/staff', label: 'الموظفين', icon: UserCog },
+const allNavItems = [
+  { path: '/admin/dashboard', label: 'الإحصائيات', icon: BarChart3, key: 'stats' },
+  { path: '/admin/dashboard/products', label: 'المنتجات', icon: Package, key: 'products' },
+  { path: '/admin/dashboard/orders', label: 'الطلبات', icon: ShoppingCart, key: 'orders' },
+  { path: '/admin/dashboard/customers', label: 'العملاء', icon: Users, key: 'customers' },
+  { path: '/admin/dashboard/deposits', label: 'العربون', icon: Wallet, key: 'deposits' },
+  { path: '/admin/dashboard/search-by-code', label: 'البحث بالكود', icon: SearchCode, key: 'search-by-code' },
+  { path: '/admin/dashboard/customer-extra-info', label: 'معلومات إضافية', icon: FileText, key: 'customer-extra-info' },
+  { path: '/admin/dashboard/product-images', label: 'صور المنتجات', icon: ImagePlus, key: 'product-images' },
+  { path: '/admin/dashboard/stock-alerts', label: 'تنبيهات المخزون', icon: Bell, key: 'stock-alerts' },
+  { path: '/admin/dashboard/product-report', label: 'تقرير المنتجات', icon: ClipboardList, key: 'product-report' },
+  { path: '/admin/dashboard/staff', label: 'الموظفين', icon: UserCog, key: 'staff' },
+  { path: '/admin/dashboard/settings', label: 'الإعدادات', icon: Settings, key: 'settings' },
 ];
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [isAuth, setIsAuth] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [staffPermissions, setStaffPermissions] = useState<string[]>([]);
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
   useEffect(() => {
-    const auth = sessionStorage.getItem('modernkids_admin');
-    if (!auth) {
-      navigate('/admin');
-    } else {
+    const adminAuth = sessionStorage.getItem('modernkids_admin');
+    const staffAuth = sessionStorage.getItem('modernkids_staff');
+    
+    if (adminAuth) {
       setIsAuth(true);
+      setIsAdmin(true);
+    } else if (staffAuth) {
+      try {
+        const staff = JSON.parse(staffAuth);
+        setIsAuth(true);
+        setIsAdmin(false);
+        setStaffPermissions(staff.permissions || []);
+      } catch {
+        navigate('/admin');
+      }
+    } else {
+      navigate('/admin');
     }
   }, [navigate]);
 
+  const navItems = useMemo(() => {
+    if (isAdmin) return allNavItems;
+    // Staff: filter by permissions, always hide staff management and settings
+    return allNavItems.filter(item => {
+      if (item.key === 'staff' || item.key === 'settings') return false;
+      return staffPermissions.includes(item.key);
+    });
+  }, [isAdmin, staffPermissions]);
+
   const handleLogout = () => {
     sessionStorage.removeItem('modernkids_admin');
+    sessionStorage.removeItem('modernkids_staff');
     navigate('/admin');
   };
 
@@ -45,7 +70,6 @@ const AdminDashboard = () => {
   return (
     <VersionProvider>
       <div className="min-h-screen bg-background flex">
-        {/* Sidebar Toggle Button */}
         <Button
           variant="ghost"
           size="icon"
@@ -55,7 +79,6 @@ const AdminDashboard = () => {
           {sidebarOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
         </Button>
 
-        {/* Overlay for mobile */}
         {sidebarOpen && (
           <div
             className="fixed inset-0 bg-black/50 z-30 lg:hidden"
@@ -63,7 +86,6 @@ const AdminDashboard = () => {
           />
         )}
 
-        {/* Sidebar */}
         <aside className={`
           fixed lg:sticky top-0 h-screen z-40
           bg-card border-l border-border flex flex-col
@@ -128,7 +150,6 @@ const AdminDashboard = () => {
           </div>
         </aside>
 
-        {/* Main Content */}
         <main className="flex-1 p-6 overflow-auto">
           <Outlet />
         </main>
