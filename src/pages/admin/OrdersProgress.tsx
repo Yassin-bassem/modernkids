@@ -31,7 +31,7 @@ interface Order {
 }
 
 const OrdersProgress = () => {
-  const { currentVersion } = useVersion();
+  const { activeVersion } = useVersion();
   const { toast } = useToast();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
