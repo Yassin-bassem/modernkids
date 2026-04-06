@@ -227,7 +227,7 @@ export const VersionProvider = ({ children }: { children: ReactNode }) => {
   };
 
   return (
-    <VersionContext.Provider value={{ versions, activeVersion, loading, setActiveVersion, createVersion, renameVersion, deleteVersion, loadVersions }}>
+    <VersionContext.Provider value={{ versions, activeVersion, loading, setActiveVersion, createVersion, renameVersion, deleteVersion, mergeProductsFromPreviousVersion, loadVersions }}>
       {children}
     </VersionContext.Provider>
   );
