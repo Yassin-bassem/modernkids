@@ -14,9 +14,10 @@ interface VersionContextType {
   activeVersion: Version | null;
   loading: boolean;
   setActiveVersion: (version: Version) => Promise<void>;
-  createVersion: (name: string) => Promise<void>;
+  createVersion: (name: string) => Promise<string | null>;
   renameVersion: (versionId: string, newName: string) => Promise<void>;
   deleteVersion: (versionId: string) => Promise<void>;
+  mergeProductsFromPreviousVersion: (newVersionId: string) => Promise<void>;
   loadVersions: () => Promise<void>;
 }
 
