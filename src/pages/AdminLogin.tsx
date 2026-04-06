@@ -53,13 +53,20 @@ const AdminLogin = () => {
       }
 
       const staffMember = data[0];
+      const permissions: string[] = (staffMember as any).permissions || [];
       sessionStorage.setItem('modernkids_staff', JSON.stringify({
         id: staffMember.id,
         name: staffMember.name,
-        permissions: (staffMember as any).permissions || [],
+        permissions,
       }));
       toast.success(`مرحباً ${staffMember.name}`);
-      navigate('/admin/dashboard');
+      
+      // If staff has permissions → admin panel, otherwise → home page for orders
+      if (permissions.length > 0) {
+        navigate('/admin/dashboard');
+      } else {
+        navigate('/');
+      }
     }
   };
 
