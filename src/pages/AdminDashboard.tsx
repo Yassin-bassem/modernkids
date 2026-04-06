@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useNavigate, Link, Outlet, useLocation } from 'react-router-dom';
-import { Package, ShoppingCart, Users, BarChart3, LogOut, Wallet, SearchCode, FileText, ImagePlus, Menu, X, Bell, UserCog, ClipboardList, Settings } from 'lucide-react';
+import { Package, ShoppingCart, Users, BarChart3, LogOut, Wallet, SearchCode, FileText, ImagePlus, Menu, X, Bell, UserCog, ClipboardList, Settings, ListChecks } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import modernKidsLogo from '@/assets/modern-kids-logo.png';
 import { VersionProvider } from '@/contexts/VersionContext';
@@ -17,6 +17,7 @@ const allNavItems = [
   { path: '/admin/dashboard/product-images', label: 'صور المنتجات', icon: ImagePlus, key: 'product-images' },
   { path: '/admin/dashboard/stock-alerts', label: 'تنبيهات المخزون', icon: Bell, key: 'stock-alerts' },
   { path: '/admin/dashboard/product-report', label: 'تقرير المنتجات', icon: ClipboardList, key: 'product-report' },
+  { path: '/admin/dashboard/orders-progress', label: 'تقدم الطلبات', icon: ListChecks, key: 'orders-progress' },
   { path: '/admin/dashboard/staff', label: 'الموظفين', icon: UserCog, key: 'staff' },
   { path: '/admin/dashboard/settings', label: 'الإعدادات', icon: Settings, key: 'settings' },
 ];
