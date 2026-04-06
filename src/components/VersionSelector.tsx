@@ -135,22 +135,37 @@ const VersionSelector = () => {
             <DialogHeader>
               <DialogTitle>إنشاء نسخة جديدة</DialogTitle>
             </DialogHeader>
-            <div className="space-y-4 pt-4">
-              <div className="space-y-2">
-                <Label>اسم النسخة</Label>
-                <Input
-                  placeholder="مثال: يناير 2025"
-                  value={newVersionName}
-                  onChange={(e) => setNewVersionName(e.target.value)}
-                />
+            {!newVersionId ? (
+              <div className="space-y-4 pt-4">
+                <div className="space-y-2">
+                  <Label>اسم النسخة</Label>
+                  <Input
+                    placeholder="مثال: يناير 2025"
+                    value={newVersionName}
+                    onChange={(e) => setNewVersionName(e.target.value)}
+                  />
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  سيتم إنشاء نسخة جديدة فارغة وسيبدأ ترقيم الطلبات من 1
+                </p>
+                <Button onClick={handleCreateVersion} className="w-full">
+                  إنشاء النسخة
+                </Button>
               </div>
-              <p className="text-sm text-muted-foreground">
-                سيتم إنشاء نسخة جديدة فارغة وسيبدأ ترقيم الطلبات من 1
-              </p>
-              <Button onClick={handleCreateVersion} className="w-full">
-                إنشاء النسخة
-              </Button>
-            </div>
+            ) : (
+              <div className="space-y-4 pt-4">
+                <p className="text-sm text-muted-foreground">
+                  تم إنشاء النسخة بنجاح. هل تريد نقل جميع المنتجات من النسخة السابقة؟
+                </p>
+                <Button onClick={handleMergeProducts} disabled={merging} className="w-full gap-2">
+                  <Copy className="h-4 w-4" />
+                  {merging ? 'جاري نقل المنتجات...' : 'نقل المنتجات من النسخة السابقة'}
+                </Button>
+                <Button variant="outline" onClick={handleSkipMerge} disabled={merging} className="w-full">
+                  تخطي
+                </Button>
+              </div>
+            )}
           </DialogContent>
         </Dialog>
 
