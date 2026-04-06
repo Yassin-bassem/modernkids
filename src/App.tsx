@@ -19,6 +19,7 @@ import ProductImages from "./pages/admin/ProductImages";
 import StockAlerts from "./pages/admin/StockAlerts";
 import StaffManagement from "./pages/admin/StaffManagement";
 import ProductReport from "./pages/admin/ProductReport";
+import OrdersProgress from "./pages/admin/OrdersProgress";
 import Settings from "./pages/admin/Settings";
 import NotFound from "./pages/NotFound";
 
@@ -46,6 +47,7 @@ const App = () => (
               <Route path="product-images" element={<ProductImages />} />
               <Route path="stock-alerts" element={<StockAlerts />} />
               <Route path="product-report" element={<ProductReport />} />
+              <Route path="orders-progress" element={<OrdersProgress />} />
               <Route path="staff" element={<StaffManagement />} />
               <Route path="settings" element={<Settings />} />
             </Route>

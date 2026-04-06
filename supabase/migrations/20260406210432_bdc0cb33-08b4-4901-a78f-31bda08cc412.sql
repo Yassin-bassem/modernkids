@@ -1,0 +1,1 @@
+ALTER TABLE public.order_items ADD COLUMN is_delivered boolean NOT NULL DEFAULT false;
