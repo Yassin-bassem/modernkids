@@ -14,6 +14,30 @@ export type Database = {
   }
   public: {
     Tables: {
+      app_settings: {
+        Row: {
+          created_at: string
+          id: string
+          key: string
+          updated_at: string
+          value: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          key: string
+          updated_at?: string
+          value: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          key?: string
+          updated_at?: string
+          value?: string
+        }
+        Relationships: []
+      }
       categories: {
         Row: {
           created_at: string
@@ -382,6 +406,7 @@ export type Database = {
           is_active: boolean
           name: string
           password: string
+          permissions: Json | null
         }
         Insert: {
           created_at?: string
@@ -389,6 +414,7 @@ export type Database = {
           is_active?: boolean
           name: string
           password: string
+          permissions?: Json | null
         }
         Update: {
           created_at?: string
@@ -396,6 +422,7 @@ export type Database = {
           is_active?: boolean
           name?: string
           password?: string
+          permissions?: Json | null
         }
         Relationships: []
       }
