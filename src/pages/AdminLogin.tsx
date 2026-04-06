@@ -59,7 +59,7 @@ const AdminLogin = () => {
         permissions: (staffMember as any).permissions || [],
       }));
       toast.success(`مرحباً ${staffMember.name}`);
-      navigate('/');
+      navigate('/admin/dashboard');
     }
   };
 
