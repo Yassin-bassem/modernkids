@@ -74,10 +74,10 @@ export const VersionProvider = ({ children }: { children: ReactNode }) => {
     await loadVersions();
   };
 
-  const createVersion = async (name: string) => {
+  const createVersion = async (name: string): Promise<string | null> => {
     if (!name.trim()) {
       toast.error('يرجى إدخال اسم النسخة');
-      return;
+      return null;
     }
 
     // Deactivate all versions first
@@ -95,12 +95,78 @@ export const VersionProvider = ({ children }: { children: ReactNode }) => {
 
     if (error) {
       toast.error('فشل في إنشاء النسخة');
-      return;
+      return null;
     }
 
     toast.success(`تم إنشاء نسخة جديدة: ${name}`);
     setActiveVersionState(data);
     await loadVersions();
+    return data.id;
+  };
+
+  const mergeProductsFromPreviousVersion = async (newVersionId: string) => {
+    // Find the previous version (most recent before the new one, excluding new)
+    const sortedVersions = versions
+      .filter(v => v.id !== newVersionId)
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
+    if (sortedVersions.length === 0) {
+      toast.error('لا توجد نسخة سابقة لنقل المنتجات منها');
+      return;
+    }
+
+    const previousVersion = sortedVersions[0];
+
+    // Fetch all products from previous version (handle >1000 rows)
+    let allProducts: any[] = [];
+    let from = 0;
+    const batchSize = 1000;
+    while (true) {
+      const { data, error } = await supabase
+        .from('products')
+        .select('code, name, description, price, image_url, stock_quantity, low_stock_threshold, category_id')
+        .eq('version_id', previousVersion.id)
+        .range(from, from + batchSize - 1);
+
+      if (error) {
+        toast.error('فشل في جلب منتجات النسخة السابقة');
+        return;
+      }
+      if (!data || data.length === 0) break;
+      allProducts = [...allProducts, ...data];
+      if (data.length < batchSize) break;
+      from += batchSize;
+    }
+
+    if (allProducts.length === 0) {
+      toast.error('لا توجد منتجات في النسخة السابقة');
+      return;
+    }
+
+    // Insert products into new version in batches
+    const newProducts = allProducts.map(p => ({
+      code: p.code,
+      name: p.name,
+      description: p.description,
+      price: p.price,
+      image_url: p.image_url,
+      stock_quantity: p.stock_quantity,
+      low_stock_threshold: p.low_stock_threshold,
+      version_id: newVersionId,
+      // category_id is version-specific, skip it
+    }));
+
+    for (let i = 0; i < newProducts.length; i += 500) {
+      const batch = newProducts.slice(i, i + 500);
+      const { error } = await supabase.from('products').insert(batch);
+      if (error) {
+        toast.error(`فشل في نقل المنتجات (الدفعة ${Math.floor(i/500) + 1})`);
+        console.error('Merge error:', error);
+        return;
+      }
+    }
+
+    toast.success(`تم نقل ${allProducts.length} منتج من نسخة "${previousVersion.name}" بنجاح`);
   };
 
   const renameVersion = async (versionId: string, newName: string) => {
