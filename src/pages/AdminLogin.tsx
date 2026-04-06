@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Lock, Eye, EyeOff, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -8,21 +8,29 @@ import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import modernKidsLogo from '@/assets/modern-kids-logo.png';
 
-const ADMIN_PASSWORD = '0929';
-
 const AdminLogin = () => {
   const navigate = useNavigate();
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loginMode, setLoginMode] = useState<'admin' | 'staff'>('admin');
-  const [staffName, setStaffName] = useState('');
   const [loading, setLoading] = useState(false);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    setLoading(true);
     
     if (loginMode === 'admin') {
-      if (password === ADMIN_PASSWORD) {
+      // Fetch admin password from app_settings
+      const { data, error } = await supabase
+        .from('app_settings')
+        .select('value')
+        .eq('key', 'admin_password')
+        .single();
+
+      setLoading(false);
+
+      const adminPassword = data?.value || '0929';
+      if (password === adminPassword) {
         sessionStorage.setItem('modernkids_admin', 'true');
         toast.success('تم تسجيل الدخول بنجاح');
         navigate('/admin/dashboard');
@@ -31,7 +39,6 @@ const AdminLogin = () => {
       }
     } else {
       // Staff login
-      setLoading(true);
       const { data, error } = await supabase
         .from('staff_members')
         .select('*')
@@ -49,6 +56,7 @@ const AdminLogin = () => {
       sessionStorage.setItem('modernkids_staff', JSON.stringify({
         id: staffMember.id,
         name: staffMember.name,
+        permissions: (staffMember as any).permissions || [],
       }));
       toast.success(`مرحباً ${staffMember.name}`);
       navigate('/');
@@ -67,7 +75,6 @@ const AdminLogin = () => {
           <CardTitle className="text-2xl gradient-text">
             {loginMode === 'admin' ? 'لوحة التحكم' : 'تسجيل دخول الموظفين'}
           </CardTitle>
-          {/* Toggle between admin and staff */}
           <div className="flex gap-2 justify-center">
             <Button
               type="button"
