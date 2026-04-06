@@ -40,13 +40,13 @@ const OrdersProgress = () => {
   const [expandedOrder, setExpandedOrder] = useState<string | null>(null);
 
   const fetchOrders = async () => {
-    if (!currentVersion) return;
+    if (!activeVersion) return;
     setLoading(true);
 
     const { data: ordersData, error: ordersError } = await supabase
       .from('orders')
       .select('id, order_number, customer_name, phone, shop_name, total, created_at, status')
-      .eq('version_id', currentVersion.id)
+      .eq('version_id', activeVersion.id)
       .order('order_number', { ascending: false });
 
     if (ordersError) {
@@ -58,7 +58,7 @@ const OrdersProgress = () => {
     const { data: itemsData, error: itemsError } = await supabase
       .from('order_items')
       .select('id, order_id, product_name, product_code, quantity, price, is_delivered')
-      .eq('version_id', currentVersion.id);
+      .eq('version_id', activeVersion.id);
 
     if (itemsError) {
       console.error(itemsError);
@@ -83,7 +83,7 @@ const OrdersProgress = () => {
 
   useEffect(() => {
     fetchOrders();
-  }, [currentVersion]);
+  }, [activeVersion]);
 
   const isOrderFinished = (order: Order) =>
     order.items.length > 0 && order.items.every((i) => i.is_delivered);
