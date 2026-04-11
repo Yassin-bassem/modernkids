@@ -72,7 +72,7 @@ const ProductSearch = () => {
     if (!product) return;
     
     if (product.stock_quantity <= 0) {
-      toast.error('الكمية نفدت لهذا المنتج - لا يمكن إضافته للسلة');
+      setStockAlertProduct(product.name);
       return;
     }
     
@@ -88,11 +88,11 @@ const ProductSearch = () => {
     
     if (added) {
       toast.success('تمت إضافة المنتج للسلة');
+      setProduct(null);
+      setSearchCode('');
     } else {
-      toast.error('الكمية المتاحة نفدت - لا يمكن إضافة المزيد');
+      setStockAlertProduct(product.name);
     }
-    setProduct(null);
-    setSearchCode('');
   };
 
   return (
