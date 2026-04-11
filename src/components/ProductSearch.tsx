@@ -69,6 +69,11 @@ const ProductSearch = () => {
   const handleAddToCart = () => {
     if (!product) return;
     
+    if (product.stock_quantity <= 0) {
+      toast.error('الكمية نفدت لهذا المنتج - لا يمكن إضافته للسلة');
+      return;
+    }
+    
     addItem({
       productId: product.id,
       code: product.code,
@@ -118,8 +123,11 @@ const ProductSearch = () => {
                 {product.description && (
                   <p className="text-sm text-muted-foreground line-clamp-2">{product.description}</p>
                 )}
-                <div className="mt-2">
+                <div className="mt-2 flex items-center gap-2">
                   <span className="text-xl font-bold text-primary">{product.price} ج.م</span>
+                  {product.stock_quantity <= 0 && (
+                    <span className="text-sm font-bold text-destructive">- الكمية نفدت</span>
+                  )}
                 </div>
               </div>
             </div>

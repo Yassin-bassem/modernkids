@@ -38,6 +38,10 @@ const Index = () => {
       if (error) throw error;
 
       if (data) {
+        if (data.stock_quantity <= 0) {
+          toast.error(`الكمية نفدت للمنتج "${data.name}" - لا يمكن إضافته للسلة`);
+          return;
+        }
         addItem({
           productId: data.id,
           code: data.code,
