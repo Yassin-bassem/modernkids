@@ -148,6 +148,11 @@ const ProductSearch = () => {
           </CardContent>
         </Card>
       )}
+      <StockAlertDialog
+        open={!!stockAlertProduct}
+        onClose={() => setStockAlertProduct('')}
+        productName={stockAlertProduct}
+      />
     </div>
   );
 };
