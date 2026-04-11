@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import { toast } from 'sonner';
 
 export interface CartItem {
   id: string;
@@ -9,6 +10,7 @@ export interface CartItem {
   price: number;
   quantity: number;
   imageUrl?: string;
+  stockQuantity?: number;
 }
 
 // Extract multiplier from description like "250/10" -> 10
