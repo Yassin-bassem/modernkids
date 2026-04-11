@@ -42,7 +42,7 @@ const Index = () => {
           toast.error(`الكمية نفدت للمنتج "${data.name}" - لا يمكن إضافته للسلة`);
           return;
         }
-        addItem({
+        const added = addItem({
           productId: data.id,
           code: data.code,
           name: data.name,
@@ -51,7 +51,11 @@ const Index = () => {
           imageUrl: data.image_url || undefined,
           stockQuantity: data.stock_quantity,
         });
-        toast.success(`تمت إضافة "${data.name}" للسلة`);
+        if (added) {
+          toast.success(`تمت إضافة "${data.name}" للسلة`);
+        } else {
+          toast.error(`الكمية المتاحة نفدت للمنتج "${data.name}" - لا يمكن إضافة المزيد`);
+        }
       } else {
         toast.error('المنتج غير موجود');
       }
