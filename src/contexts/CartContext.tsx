@@ -81,10 +81,21 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const addItem = useCallback((product: Omit<CartItem, 'id' | 'quantity'>, quantity = 1) => {
     setItems(prev => {
       const existing = prev.find(item => item.productId === product.productId);
+      const currentQty = existing ? existing.quantity : 0;
+      const newTotalQty = currentQty + quantity;
+      const multiplier = getDescriptionMultiplier(product.description);
+      const stockNeeded = newTotalQty * multiplier;
+      const stock = product.stockQuantity ?? existing?.stockQuantity;
+
+      if (stock !== undefined && stockNeeded > stock) {
+        toast.error(`الكمية المتاحة نفدت للمنتج "${product.name}" - لا يمكن إضافة المزيد`);
+        return prev;
+      }
+
       if (existing) {
         return prev.map(item =>
           item.productId === product.productId
-            ? { ...item, quantity: item.quantity + quantity }
+            ? { ...item, quantity: item.quantity + quantity, stockQuantity: product.stockQuantity ?? item.stockQuantity }
             : item
         );
       }
