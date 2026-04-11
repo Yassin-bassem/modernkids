@@ -1,7 +1,8 @@
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useCart } from '@/contexts/CartContext';
 import { toast } from 'sonner';
+import StockAlertDialog from '@/components/StockAlertDialog';
 import Header from '@/components/Header';
 import QRScanner from '@/components/QRScanner';
 import CartPreview from '@/components/CartPreview';
@@ -14,6 +15,7 @@ import { MessageCircle, FileEdit } from 'lucide-react';
 
 const Index = () => {
   const { addItem, extraInfo, setExtraInfo } = useCart();
+  const [stockAlertProduct, setStockAlertProduct] = useState('');
 
   const handleQRScan = useCallback(async (code: string) => {
     try {
@@ -39,7 +41,7 @@ const Index = () => {
 
       if (data) {
         if (data.stock_quantity <= 0) {
-          toast.error(`الكمية نفدت للمنتج "${data.name}" - لا يمكن إضافته للسلة`);
+          setStockAlertProduct(data.name);
           return;
         }
         const added = addItem({
@@ -54,7 +56,7 @@ const Index = () => {
         if (added) {
           toast.success(`تمت إضافة "${data.name}" للسلة`);
         } else {
-          toast.error(`الكمية المتاحة نفدت للمنتج "${data.name}" - لا يمكن إضافة المزيد`);
+          setStockAlertProduct(data.name);
         }
       } else {
         toast.error('المنتج غير موجود');
