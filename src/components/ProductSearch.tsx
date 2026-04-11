@@ -81,6 +81,7 @@ const ProductSearch = () => {
       description: product.description || '',
       price: product.price,
       imageUrl: product.image_url || undefined,
+      stockQuantity: product.stock_quantity,
     });
     
     toast.success('تمت إضافة المنتج للسلة');

@@ -49,6 +49,7 @@ const Index = () => {
           description: data.description || '',
           price: data.price,
           imageUrl: data.image_url || undefined,
+          stockQuantity: data.stock_quantity,
         });
         toast.success(`تمت إضافة "${data.name}" للسلة`);
       } else {

@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import { toast } from 'sonner';
 
 export interface CartItem {
   id: string;
@@ -9,6 +10,7 @@ export interface CartItem {
   price: number;
   quantity: number;
   imageUrl?: string;
+  stockQuantity?: number;
 }
 
 // Extract multiplier from description like "250/10" -> 10
@@ -79,10 +81,21 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const addItem = useCallback((product: Omit<CartItem, 'id' | 'quantity'>, quantity = 1) => {
     setItems(prev => {
       const existing = prev.find(item => item.productId === product.productId);
+      const currentQty = existing ? existing.quantity : 0;
+      const newTotalQty = currentQty + quantity;
+      const multiplier = getDescriptionMultiplier(product.description);
+      const stockNeeded = newTotalQty * multiplier;
+      const stock = product.stockQuantity ?? existing?.stockQuantity;
+
+      if (stock !== undefined && stockNeeded > stock) {
+        toast.error(`الكمية المتاحة نفدت للمنتج "${product.name}" - لا يمكن إضافة المزيد`);
+        return prev;
+      }
+
       if (existing) {
         return prev.map(item =>
           item.productId === product.productId
-            ? { ...item, quantity: item.quantity + quantity }
+            ? { ...item, quantity: item.quantity + quantity, stockQuantity: product.stockQuantity ?? item.stockQuantity }
             : item
         );
       }
@@ -99,9 +112,17 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       removeItem(id);
       return;
     }
-    setItems(prev =>
-      prev.map(item => (item.id === id ? { ...item, quantity } : item))
-    );
+    setItems(prev => {
+      const item = prev.find(i => i.id === id);
+      if (item && item.stockQuantity !== undefined) {
+        const multiplier = getDescriptionMultiplier(item.description);
+        if (quantity * multiplier > item.stockQuantity) {
+          toast.error(`الكمية المتاحة نفدت للمنتج "${item.name}"`);
+          return prev;
+        }
+      }
+      return prev.map(i => (i.id === id ? { ...i, quantity } : i));
+    });
   }, [removeItem]);
 
   const clearCart = useCallback(() => {
