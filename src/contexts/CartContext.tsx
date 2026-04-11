@@ -112,9 +112,17 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       removeItem(id);
       return;
     }
-    setItems(prev =>
-      prev.map(item => (item.id === id ? { ...item, quantity } : item))
-    );
+    setItems(prev => {
+      const item = prev.find(i => i.id === id);
+      if (item && item.stockQuantity !== undefined) {
+        const multiplier = getDescriptionMultiplier(item.description);
+        if (quantity * multiplier > item.stockQuantity) {
+          toast.error(`الكمية المتاحة نفدت للمنتج "${item.name}"`);
+          return prev;
+        }
+      }
+      return prev.map(i => (i.id === id ? { ...i, quantity } : i));
+    });
   }, [removeItem]);
 
   const clearCart = useCallback(() => {
