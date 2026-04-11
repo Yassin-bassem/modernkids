@@ -74,7 +74,7 @@ const ProductSearch = () => {
       return;
     }
     
-    addItem({
+    const added = addItem({
       productId: product.id,
       code: product.code,
       name: product.name,
@@ -84,7 +84,11 @@ const ProductSearch = () => {
       stockQuantity: product.stock_quantity,
     });
     
-    toast.success('تمت إضافة المنتج للسلة');
+    if (added) {
+      toast.success('تمت إضافة المنتج للسلة');
+    } else {
+      toast.error('الكمية المتاحة نفدت - لا يمكن إضافة المزيد');
+    }
     setProduct(null);
     setSearchCode('');
   };
