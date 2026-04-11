@@ -7,6 +7,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useCart } from '@/contexts/CartContext';
 import { toast } from 'sonner';
 import ProductImage from '@/components/ProductImage';
+import StockAlertDialog from '@/components/StockAlertDialog';
 
 interface Product {
   id: string;

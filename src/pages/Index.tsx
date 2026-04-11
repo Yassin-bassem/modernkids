@@ -138,6 +138,11 @@ const Index = () => {
         <div className="fixed -bottom-20 -right-20 w-64 h-64 rounded-full bg-primary/5 blur-3xl pointer-events-none" />
         <div className="fixed -bottom-20 -left-20 w-64 h-64 rounded-full bg-secondary/5 blur-3xl pointer-events-none" />
       </main>
+      <StockAlertDialog
+        open={!!stockAlertProduct}
+        onClose={() => setStockAlertProduct('')}
+        productName={stockAlertProduct}
+      />
     </div>
   );
 };
