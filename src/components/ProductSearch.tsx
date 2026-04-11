@@ -69,6 +69,11 @@ const ProductSearch = () => {
   const handleAddToCart = () => {
     if (!product) return;
     
+    if (product.stock_quantity <= 0) {
+      toast.error('الكمية نفدت لهذا المنتج - لا يمكن إضافته للسلة');
+      return;
+    }
+    
     addItem({
       productId: product.id,
       code: product.code,
