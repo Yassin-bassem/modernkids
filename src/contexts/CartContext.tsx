@@ -28,7 +28,7 @@ export const calculateItemTotal = (item: CartItem): number => {
 
 interface CartContextType {
   items: CartItem[];
-  addItem: (product: Omit<CartItem, 'id' | 'quantity'>, quantity?: number) => void;
+  addItem: (product: Omit<CartItem, 'id' | 'quantity'>, quantity?: number) => boolean;
   removeItem: (id: string) => void;
   updateQuantity: (id: string, quantity: number) => void;
   clearCart: () => void;
@@ -78,7 +78,8 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [extraInfo]);
 
-  const addItem = useCallback((product: Omit<CartItem, 'id' | 'quantity'>, quantity = 1) => {
+  const addItem = useCallback((product: Omit<CartItem, 'id' | 'quantity'>, quantity = 1): boolean => {
+    let added = true;
     setItems(prev => {
       const existing = prev.find(item => item.productId === product.productId);
       const currentQty = existing ? existing.quantity : 0;
@@ -88,7 +89,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const stock = product.stockQuantity ?? existing?.stockQuantity;
 
       if (stock !== undefined && stockNeeded > stock) {
-        toast.error(`الكمية المتاحة نفدت للمنتج "${product.name}" - لا يمكن إضافة المزيد`);
+        added = false;
         return prev;
       }
 
@@ -101,6 +102,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
       return [...prev, { ...product, id: crypto.randomUUID(), quantity }];
     });
+    return added;
   }, []);
 
   const removeItem = useCallback((id: string) => {
