@@ -1,4 +1,4 @@
-import { AlertTriangle, X } from 'lucide-react';
+import { X } from 'lucide-react';
 
 interface StockAlertDialogProps {
   open: boolean;
@@ -10,46 +10,86 @@ const StockAlertDialog = ({ open, onClose, productName }: StockAlertDialogProps)
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4" onClick={onClose}>
-      {/* Backdrop */}
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
-      
-      {/* Dialog */}
+    <div
+      style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        zIndex: 9999,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: 'rgba(0,0,0,0.5)',
+      }}
+    >
       <div
-        className="relative z-10 w-full max-w-md rounded-2xl bg-card border-2 border-destructive/30 shadow-2xl p-8 animate-scale-in"
-        dir="rtl"
-        onClick={(e) => e.stopPropagation()}
+        style={{
+          backgroundColor: 'white',
+          borderRadius: '16px',
+          padding: '32px',
+          width: '90%',
+          maxWidth: '400px',
+          textAlign: 'center',
+          position: 'relative',
+          boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
+          border: '3px solid #ef4444',
+        }}
       >
+        {/* X close button */}
+        <button
+          onClick={onClose}
+          style={{
+            position: 'absolute',
+            top: '12px',
+            right: '12px',
+            background: '#f3f4f6',
+            border: 'none',
+            borderRadius: '50%',
+            width: '36px',
+            height: '36px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: 'pointer',
+          }}
+        >
+          <X size={20} color="#333" />
+        </button>
+
+        {/* Warning icon */}
+        <div style={{ fontSize: '48px', marginBottom: '16px' }}>⚠️</div>
+
+        {/* Message */}
+        <h2 style={{ fontSize: '24px', fontWeight: 'bold', color: '#ef4444', marginBottom: '12px', fontFamily: 'Cairo, sans-serif' }}>
+          الكمية نفدت!
+        </h2>
+        <p style={{ fontSize: '18px', color: '#333', lineHeight: '1.6', fontFamily: 'Cairo, sans-serif' }}>
+          المنتج <strong>"{productName}"</strong> 
+          <br />
+          الكمية المتاحة انتهت ولا يمكن إضافة المزيد
+        </p>
+
         {/* Close button */}
         <button
           onClick={onClose}
-          className="absolute top-4 left-4 flex h-8 w-8 items-center justify-center rounded-full bg-muted hover:bg-muted/80 transition-colors"
+          style={{
+            marginTop: '24px',
+            width: '100%',
+            padding: '14px',
+            backgroundColor: '#ef4444',
+            color: 'white',
+            border: 'none',
+            borderRadius: '12px',
+            fontSize: '18px',
+            fontWeight: 'bold',
+            cursor: 'pointer',
+            fontFamily: 'Cairo, sans-serif',
+          }}
         >
-          <X className="h-5 w-5 text-muted-foreground" />
+          ✕ إغلاق
         </button>
-
-        <div className="flex flex-col items-center text-center space-y-4">
-          {/* Icon */}
-          <div className="flex h-20 w-20 items-center justify-center rounded-full bg-destructive/10">
-            <AlertTriangle className="h-10 w-10 text-destructive" />
-          </div>
-
-          {/* Title */}
-          <h2 className="text-2xl font-bold text-foreground">الكمية نفدت!</h2>
-
-          {/* Description */}
-          <p className="text-lg text-muted-foreground leading-relaxed">
-            الكمية المتاحة للمنتج <strong className="text-foreground">"{productName}"</strong> نفدت ولا يمكن إضافة المزيد للسلة.
-          </p>
-
-          {/* Close button */}
-          <button
-            onClick={onClose}
-            className="mt-2 w-full rounded-xl bg-destructive py-3 text-lg font-bold text-destructive-foreground hover:bg-destructive/90 transition-colors"
-          >
-            ✕ حسناً
-          </button>
-        </div>
       </div>
     </div>
   );
