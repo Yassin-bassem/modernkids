@@ -120,7 +120,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (item && item.stockQuantity !== undefined) {
         const multiplier = getDescriptionMultiplier(item.description);
         if (quantity * multiplier > item.stockQuantity) {
-          toast.error(`الكمية المتاحة نفدت للمنتج "${item.name}"`);
+          toast.error(`الكمية المتاحة نفدت للمنتج "${item.name}"`, { duration: Infinity, closeButton: true });
           return prev;
         }
       }

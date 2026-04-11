@@ -7,6 +7,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useCart } from '@/contexts/CartContext';
 import { toast } from 'sonner';
 import ProductImage from '@/components/ProductImage';
+import StockAlertDialog from '@/components/StockAlertDialog';
 
 interface Product {
   id: string;
@@ -22,6 +23,7 @@ const ProductSearch = () => {
   const [searchCode, setSearchCode] = useState('');
   const [product, setProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(false);
+  const [stockAlertProduct, setStockAlertProduct] = useState('');
   const { addItem } = useCart();
 
   const handleSearch = async () => {
@@ -70,7 +72,7 @@ const ProductSearch = () => {
     if (!product) return;
     
     if (product.stock_quantity <= 0) {
-      toast.error('الكمية نفدت لهذا المنتج - لا يمكن إضافته للسلة');
+      setStockAlertProduct(product.name);
       return;
     }
     
@@ -86,11 +88,11 @@ const ProductSearch = () => {
     
     if (added) {
       toast.success('تمت إضافة المنتج للسلة');
+      setProduct(null);
+      setSearchCode('');
     } else {
-      toast.error('الكمية المتاحة نفدت - لا يمكن إضافة المزيد');
+      setStockAlertProduct(product.name);
     }
-    setProduct(null);
-    setSearchCode('');
   };
 
   return (
@@ -146,6 +148,11 @@ const ProductSearch = () => {
           </CardContent>
         </Card>
       )}
+      <StockAlertDialog
+        open={!!stockAlertProduct}
+        onClose={() => setStockAlertProduct('')}
+        productName={stockAlertProduct}
+      />
     </div>
   );
 };
