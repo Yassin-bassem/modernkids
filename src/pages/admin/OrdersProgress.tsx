@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Check, Package, Search, ChevronDown, ChevronUp, Printer } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { fetchAllRows } from '@/lib/supabaseFetchAll';
 import logoImage from '@/assets/modern-kids-logo.png';
 
 interface OrderItem {
