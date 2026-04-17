@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { FileSpreadsheet, Search, CheckSquare, Square } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { fetchAllRows } from '@/lib/supabaseFetchAll';
 import * as XLSX from 'xlsx';
 
 interface Product {
@@ -77,11 +78,15 @@ const ProductReport = () => {
 
   const fetchProductData = async (product: Product) => {
     const multiplier = getMultiplier(product.description);
-    const { data: orderItems } = await supabase
-      .from('order_items')
-      .select('quantity, product_description, order_id, created_at')
-      .eq('product_id', product.id)
-      .eq('version_id', currentVersion);
+    const orderItems = await fetchAllRows<any>((from, to) =>
+      supabase
+        .from('order_items')
+        .select('quantity, product_description, order_id, created_at')
+        .eq('product_id', product.id)
+        .eq('version_id', currentVersion)
+        .order('order_id', { ascending: true })
+        .range(from, to)
+    ).catch(() => [] as any[]);
 
     const orderDetails: OrderDetail[] = [];
     let totalPiecesSold = 0;
