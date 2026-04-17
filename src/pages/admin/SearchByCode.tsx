@@ -7,6 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useVersion } from '@/contexts/VersionContext';
+import { fetchAllRows } from '@/lib/supabaseFetchAll';
 
 interface OrderWithProduct {
   order_id: string;
@@ -65,20 +66,27 @@ const SearchByCode = () => {
       setProductDescription(product?.description || null);
       setStockQuantity(product?.stock_quantity || 0);
 
-      // Get all order items with this product code for this version
-      const { data: orderItems, error } = await supabase
-        .from('order_items')
-        .select(`
-          order_id,
-          quantity,
-          price,
-          product_name,
-          product_description
-        `)
-        .eq('product_code', searchCode.trim())
-        .eq('version_id', activeVersion.id);
-
-      if (error) throw error;
+      // Get all order items with this product code for this version (paginated)
+      let orderItems: any[] = [];
+      try {
+        orderItems = await fetchAllRows<any>((from, to) =>
+          supabase
+            .from('order_items')
+            .select(`
+              order_id,
+              quantity,
+              price,
+              product_name,
+              product_description
+            `)
+            .eq('product_code', searchCode.trim())
+            .eq('version_id', activeVersion.id)
+            .order('order_id', { ascending: true })
+            .range(from, to)
+        );
+      } catch (err: any) {
+        throw err;
+      }
 
       if (!orderItems || orderItems.length === 0) {
         setOrders([]);
