@@ -72,19 +72,32 @@ const OrdersProgress = () => {
       return;
     }
 
-    const { data: itemsData, error: itemsError } = await supabase
-      .from('order_items')
-      .select('id, order_id, product_name, product_code, product_description, quantity, price, is_delivered')
-      .eq('version_id', activeVersion.id);
+    // Fetch all order_items in pages to bypass the 1000-row default limit
+    const PAGE_SIZE = 1000;
+    let allItems: any[] = [];
+    let from = 0;
+    while (true) {
+      const { data: pageData, error: itemsError } = await supabase
+        .from('order_items')
+        .select('id, order_id, product_name, product_code, product_description, quantity, price, is_delivered')
+        .eq('version_id', activeVersion.id)
+        .order('id', { ascending: true })
+        .range(from, from + PAGE_SIZE - 1);
 
-    if (itemsError) {
-      console.error(itemsError);
-      setLoading(false);
-      return;
+      if (itemsError) {
+        console.error(itemsError);
+        setLoading(false);
+        return;
+      }
+
+      const batch = pageData || [];
+      allItems = allItems.concat(batch);
+      if (batch.length < PAGE_SIZE) break;
+      from += PAGE_SIZE;
     }
 
     const itemsByOrder: Record<string, OrderItem[]> = {};
-    (itemsData || []).forEach((item: any) => {
+    allItems.forEach((item: any) => {
       if (!itemsByOrder[item.order_id]) itemsByOrder[item.order_id] = [];
       itemsByOrder[item.order_id].push(item);
     });
