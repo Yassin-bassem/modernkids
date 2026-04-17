@@ -72,28 +72,21 @@ const OrdersProgress = () => {
       return;
     }
 
-    // Fetch all order_items in pages to bypass the 1000-row default limit
-    const PAGE_SIZE = 1000;
+    // Use paginated helper to avoid Supabase's 1000-row default limit
     let allItems: any[] = [];
-    let from = 0;
-    while (true) {
-      const { data: pageData, error: itemsError } = await supabase
-        .from('order_items')
-        .select('id, order_id, product_name, product_code, product_description, quantity, price, is_delivered')
-        .eq('version_id', activeVersion.id)
-        .order('id', { ascending: true })
-        .range(from, from + PAGE_SIZE - 1);
-
-      if (itemsError) {
-        console.error(itemsError);
-        setLoading(false);
-        return;
-      }
-
-      const batch = pageData || [];
-      allItems = allItems.concat(batch);
-      if (batch.length < PAGE_SIZE) break;
-      from += PAGE_SIZE;
+    try {
+      allItems = await fetchAllRows<any>((from, to) =>
+        supabase
+          .from('order_items')
+          .select('id, order_id, product_name, product_code, product_description, quantity, price, is_delivered')
+          .eq('version_id', activeVersion.id)
+          .order('id', { ascending: true })
+          .range(from, to)
+      );
+    } catch (e) {
+      console.error(e);
+      setLoading(false);
+      return;
     }
 
     const itemsByOrder: Record<string, OrderItem[]> = {};
