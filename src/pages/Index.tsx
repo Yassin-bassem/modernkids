@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { useCart } from '@/contexts/CartContext';
+import { useCart, getDescriptionMultiplier } from '@/contexts/CartContext';
+import { useSalesMode, canSell } from '@/hooks/useSalesMode';
 import { toast } from 'sonner';
 import StockAlertDialog from '@/components/StockAlertDialog';
 import Header from '@/components/Header';
@@ -15,6 +16,7 @@ import { MessageCircle, FileEdit } from 'lucide-react';
 
 const Index = () => {
   const { addItem, extraInfo, setExtraInfo } = useCart();
+  const salesSettings = useSalesMode();
   const [stockAlertProduct, setStockAlertProduct] = useState('');
 
   const handleQRScan = useCallback(async (code: string) => {
@@ -40,7 +42,8 @@ const Index = () => {
       if (error) throw error;
 
       if (data) {
-        if (data.stock_quantity <= 0) {
+        const multiplier = getDescriptionMultiplier(data.description || '');
+        if (!canSell(data.stock_quantity, multiplier, salesSettings)) {
           setStockAlertProduct(data.name);
           return;
         }
