@@ -168,23 +168,35 @@ const Products = () => {
 
     try {
       if (editingProduct) {
-        const { error } = await supabase
+        const { data, error } = await supabase
           .from('products')
           .update(submitData)
-          .eq('id', editingProduct.id);
+          .eq('id', editingProduct.id)
+          .select()
+          .single();
         if (error) throw error;
-        toast.success('تم تحديث المنتج');
+        // Update locally so the product stays visible (no scroll to top, no flicker)
+        if (data) {
+          setProducts((prev) => prev.map((p) => (p.id === data.id ? (data as Product) : p)));
+        }
+        // Filter the list to show the edited product so user can verify the change
+        setSearchCode(submitData.code);
+        toast.success(`تم تحديث المنتج ${submitData.code}`);
+        setDialogOpen(false);
+        resetForm();
       } else {
-        const { error } = await supabase.from('products').insert({
+        const { data, error } = await supabase.from('products').insert({
           ...submitData,
           version_id: activeVersion.id,
-        });
+        }).select().single();
         if (error) throw error;
+        if (data) {
+          setProducts((prev) => [data as Product, ...prev]);
+        }
         toast.success('تم إضافة المنتج');
+        setDialogOpen(false);
+        resetForm();
       }
-      setDialogOpen(false);
-      resetForm();
-      loadProducts();
     } catch (err: any) {
       toast.error(err.message || 'حدث خطأ');
     }
