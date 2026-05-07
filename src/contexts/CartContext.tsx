@@ -45,6 +45,10 @@ const CART_STORAGE_KEY = 'modernkids_cart';
 const EXTRA_INFO_STORAGE_KEY = 'modernkids_extra_info';
 
 export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const salesSettings = useSalesMode();
+  const salesRef = useRef(salesSettings);
+  useEffect(() => { salesRef.current = salesSettings; }, [salesSettings]);
+
   const [items, setItems] = useState<CartItem[]>(() => {
     try {
       const stored = localStorage.getItem(CART_STORAGE_KEY);
@@ -89,7 +93,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const stockNeeded = newTotalQty * multiplier;
       const stock = product.stockQuantity ?? existing?.stockQuantity;
 
-      if (stock !== undefined && stockNeeded > stock) {
+      if (stock !== undefined && !canSell(stock, stockNeeded, salesRef.current)) {
         added = false;
         return prev;
       }
@@ -119,7 +123,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const item = prev.find(i => i.id === id);
       if (item && item.stockQuantity !== undefined) {
         const multiplier = getDescriptionMultiplier(item.description);
-        if (quantity * multiplier > item.stockQuantity) {
+        if (!canSell(item.stockQuantity, quantity * multiplier, salesRef.current)) {
           toast.error(`الكمية المتاحة نفدت للمنتج "${item.name}"`, { duration: Infinity, closeButton: true });
           return prev;
         }
