@@ -4,7 +4,8 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
-import { useCart } from '@/contexts/CartContext';
+import { useCart, getDescriptionMultiplier } from '@/contexts/CartContext';
+import { useSalesMode, canSell } from '@/hooks/useSalesMode';
 import { toast } from 'sonner';
 import ProductImage from '@/components/ProductImage';
 import StockAlertDialog from '@/components/StockAlertDialog';
@@ -25,6 +26,7 @@ const ProductSearch = () => {
   const [loading, setLoading] = useState(false);
   const [stockAlertProduct, setStockAlertProduct] = useState('');
   const { addItem } = useCart();
+  const salesSettings = useSalesMode();
 
   const handleSearch = async () => {
     if (!searchCode.trim()) {
@@ -70,8 +72,9 @@ const ProductSearch = () => {
 
   const handleAddToCart = () => {
     if (!product) return;
-    
-    if (product.stock_quantity <= 0) {
+
+    const multiplier = getDescriptionMultiplier(product.description || '');
+    if (!canSell(product.stock_quantity, multiplier, salesSettings)) {
       setStockAlertProduct(product.name);
       return;
     }

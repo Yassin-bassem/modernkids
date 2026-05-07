@@ -504,8 +504,8 @@ const Products = () => {
                   <Input value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} />
                 </div>
                 <div>
-                  <Label>الوصف</Label>
-                  <Input value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} />
+                  <Label>السعر/عدد الثري</Label>
+                  <Input value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} placeholder="مثال: 200/20" dir="ltr" />
                 </div>
                 <div>
                   <Label>التصنيف</Label>
@@ -523,7 +523,7 @@ const Products = () => {
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <Label>الكمية</Label>
+                    <Label>الكمية <span className="text-xs text-muted-foreground font-normal">(قطع ليس ثريهات)</span></Label>
                     <Input type="number" value={formData.stock_quantity} onChange={(e) => setFormData({ ...formData, stock_quantity: parseInt(e.target.value) || 0 })} dir="ltr" />
                   </div>
                   <div>
