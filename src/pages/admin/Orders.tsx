@@ -116,16 +116,18 @@ const Orders = () => {
   const loadOrders = async () => {
     if (!activeVersion) return;
     setLoading(true);
-    const { data, error } = await supabase
-      .from('orders')
-      .select('*')
-      .eq('version_id', activeVersion.id)
-      .order('order_number', { ascending: false });
-
-    if (error) {
+    try {
+      const data = await fetchAllRows<any>((from, to) =>
+        supabase
+          .from('orders')
+          .select('*')
+          .eq('version_id', activeVersion.id)
+          .order('order_number', { ascending: false })
+          .range(from, to)
+      );
+      setOrders(data);
+    } catch {
       toast.error('فشل في تحميل الطلبات');
-    } else {
-      setOrders(data || []);
     }
     setLoading(false);
   };
