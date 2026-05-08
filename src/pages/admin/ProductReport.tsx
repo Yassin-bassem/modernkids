@@ -42,12 +42,15 @@ const ProductReport = () => {
 
   const loadProducts = async () => {
     setLoading(true);
-    const { data } = await supabase
-      .from('products')
-      .select('id, code, name, description, stock_quantity')
-      .eq('version_id', currentVersion)
-      .order('code');
-    setProducts(data || []);
+    const data = await fetchAllRows<Product>((from, to) =>
+      supabase
+        .from('products')
+        .select('id, code, name, description, stock_quantity')
+        .eq('version_id', currentVersion)
+        .order('code')
+        .range(from, to)
+    ).catch(() => [] as Product[]);
+    setProducts(data);
     setLoading(false);
   };
 
