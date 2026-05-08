@@ -20,6 +20,7 @@ const allNavItems = [
   { path: '/admin/dashboard/orders-progress', label: 'تقدم الطلبات', icon: ListChecks, key: 'orders-progress' },
   { path: '/admin/dashboard/sales-control', label: 'التحكم بالبيع', icon: ShieldAlert, key: 'sales-control' },
   { path: '/admin/dashboard/staff', label: 'الموظفين', icon: UserCog, key: 'staff' },
+  { path: '/admin/dashboard/backup', label: 'النسخ الاحتياطي', icon: Database, key: 'backup' },
   { path: '/admin/dashboard/settings', label: 'الإعدادات', icon: Settings, key: 'settings' },
 ];
 
