@@ -92,21 +92,19 @@ const Deposits = () => {
     if (!activeVersion) return;
     setLoading(true);
     
-    const [depositsResult, expensesResult] = await Promise.all([
-      supabase.from('deposits').select('*').eq('version_id', activeVersion.id).order('created_at', { ascending: false }),
-      supabase.from('expenses').select('*').eq('version_id', activeVersion.id).order('created_at', { ascending: false }),
-    ]);
-
-    if (depositsResult.error) {
-      toast.error('فشل في تحميل العربون');
-    } else {
-      setDeposits(depositsResult.data || []);
-    }
-
-    if (expensesResult.error) {
-      toast.error('فشل في تحميل المصروفات');
-    } else {
-      setExpenses(expensesResult.data || []);
+    try {
+      const [depositsData, expensesData] = await Promise.all([
+        fetchAllRows<any>((from, to) =>
+          supabase.from('deposits').select('*').eq('version_id', activeVersion.id).order('created_at', { ascending: false }).range(from, to)
+        ),
+        fetchAllRows<any>((from, to) =>
+          supabase.from('expenses').select('*').eq('version_id', activeVersion.id).order('created_at', { ascending: false }).range(from, to)
+        ),
+      ]);
+      setDeposits(depositsData);
+      setExpenses(expensesData);
+    } catch {
+      toast.error('فشل في تحميل البيانات');
     }
     
     setLoading(false);
