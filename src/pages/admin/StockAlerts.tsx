@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
+import { fetchAllRows } from '@/lib/supabaseFetchAll';
 import { toast } from 'sonner';
 import { useVersion } from '@/contexts/VersionContext';
 
@@ -42,16 +43,18 @@ const StockAlerts = () => {
   const loadAlerts = async () => {
     if (!activeVersion) return;
     setLoading(true);
-    const { data, error } = await supabase
-      .from('stock_alerts')
-      .select('*')
-      .eq('version_id', activeVersion.id)
-      .order('created_at', { ascending: false });
-
-    if (error) {
+    try {
+      const data = await fetchAllRows<any>((from, to) =>
+        supabase
+          .from('stock_alerts')
+          .select('*')
+          .eq('version_id', activeVersion.id)
+          .order('created_at', { ascending: false })
+          .range(from, to)
+      );
+      setAlerts(data as StockAlert[]);
+    } catch {
       toast.error('فشل في تحميل التنبيهات');
-    } else {
-      setAlerts((data as StockAlert[]) || []);
     }
     setLoading(false);
   };

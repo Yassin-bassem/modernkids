@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { supabase } from '@/integrations/supabase/client';
+import { fetchAllRows } from '@/lib/supabaseFetchAll';
 import { toast } from 'sonner';
 import { useVersion } from '@/contexts/VersionContext';
 
@@ -42,16 +43,18 @@ const Customers = () => {
   const loadCustomers = async () => {
     if (!activeVersion) return;
     setLoading(true);
-    const { data, error } = await supabase
-      .from('customers')
-      .select('*')
-      .eq('version_id', activeVersion.id)
-      .order('created_at', { ascending: false });
-
-    if (error) {
+    try {
+      const data = await fetchAllRows<Customer>((from, to) =>
+        supabase
+          .from('customers')
+          .select('*')
+          .eq('version_id', activeVersion.id)
+          .order('created_at', { ascending: false })
+          .range(from, to)
+      );
+      setCustomers(data);
+    } catch {
       toast.error('فشل في تحميل العملاء');
-    } else {
-      setCustomers(data || []);
     }
     setLoading(false);
   };

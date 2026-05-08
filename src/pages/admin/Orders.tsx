@@ -6,6 +6,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
+import { fetchAllRows } from '@/lib/supabaseFetchAll';
 import { toast } from 'sonner';
 import logoImage from '@/assets/modern-kids-logo.png';
 import { useVersion } from '@/contexts/VersionContext';
@@ -115,16 +116,18 @@ const Orders = () => {
   const loadOrders = async () => {
     if (!activeVersion) return;
     setLoading(true);
-    const { data, error } = await supabase
-      .from('orders')
-      .select('*')
-      .eq('version_id', activeVersion.id)
-      .order('order_number', { ascending: false });
-
-    if (error) {
+    try {
+      const data = await fetchAllRows<any>((from, to) =>
+        supabase
+          .from('orders')
+          .select('*')
+          .eq('version_id', activeVersion.id)
+          .order('order_number', { ascending: false })
+          .range(from, to)
+      );
+      setOrders(data);
+    } catch {
       toast.error('فشل في تحميل الطلبات');
-    } else {
-      setOrders(data || []);
     }
     setLoading(false);
   };
