@@ -22,6 +22,7 @@ import ProductReport from "./pages/admin/ProductReport";
 import OrdersProgress from "./pages/admin/OrdersProgress";
 import SalesControl from "./pages/admin/SalesControl";
 import Settings from "./pages/admin/Settings";
+import Backup from "./pages/admin/Backup";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -51,6 +52,7 @@ const App = () => (
               <Route path="orders-progress" element={<OrdersProgress />} />
               <Route path="sales-control" element={<SalesControl />} />
               <Route path="staff" element={<StaffManagement />} />
+              <Route path="backup" element={<Backup />} />
               <Route path="settings" element={<Settings />} />
             </Route>
             <Route path="*" element={<NotFound />} />

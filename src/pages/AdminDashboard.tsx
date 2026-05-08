@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useNavigate, Link, Outlet, useLocation } from 'react-router-dom';
-import { Package, ShoppingCart, Users, BarChart3, LogOut, Wallet, SearchCode, FileText, ImagePlus, Menu, X, Bell, UserCog, ClipboardList, Settings, ListChecks, ShieldAlert } from 'lucide-react';
+import { Package, ShoppingCart, Users, BarChart3, LogOut, Wallet, SearchCode, FileText, ImagePlus, Menu, X, Bell, UserCog, ClipboardList, Settings, ListChecks, ShieldAlert, Database } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import modernKidsLogo from '@/assets/modern-kids-logo.png';
 import { VersionProvider } from '@/contexts/VersionContext';
@@ -20,6 +20,7 @@ const allNavItems = [
   { path: '/admin/dashboard/orders-progress', label: 'تقدم الطلبات', icon: ListChecks, key: 'orders-progress' },
   { path: '/admin/dashboard/sales-control', label: 'التحكم بالبيع', icon: ShieldAlert, key: 'sales-control' },
   { path: '/admin/dashboard/staff', label: 'الموظفين', icon: UserCog, key: 'staff' },
+  { path: '/admin/dashboard/backup', label: 'النسخ الاحتياطي', icon: Database, key: 'backup' },
   { path: '/admin/dashboard/settings', label: 'الإعدادات', icon: Settings, key: 'settings' },
 ];
 
@@ -56,7 +57,7 @@ const AdminDashboard = () => {
     if (isAdmin) return allNavItems;
     // Staff: filter by permissions, always hide staff management and settings
     return allNavItems.filter(item => {
-      if (item.key === 'staff' || item.key === 'settings') return false;
+      if (item.key === 'staff' || item.key === 'settings' || item.key === 'backup') return false;
       return staffPermissions.includes(item.key);
     });
   }, [isAdmin, staffPermissions]);
