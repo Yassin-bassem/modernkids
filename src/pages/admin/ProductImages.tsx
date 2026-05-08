@@ -37,12 +37,17 @@ const ProductImages = () => {
     const uploadResults: UploadResult[] = [];
 
     // Get all products for this version
-    const { data: products, error: prodError } = await supabase
-      .from('products')
-      .select('id, code')
-      .eq('version_id', activeVersion.id);
-
-    if (prodError) {
+    let products: { id: string; code: string }[] = [];
+    try {
+      products = await fetchAllRows<{ id: string; code: string }>((from, to) =>
+        supabase
+          .from('products')
+          .select('id, code')
+          .eq('version_id', activeVersion.id)
+          .order('id', { ascending: true })
+          .range(from, to)
+      );
+    } catch {
       toast.error('فشل في تحميل المنتجات');
       setUploading(false);
       return;
