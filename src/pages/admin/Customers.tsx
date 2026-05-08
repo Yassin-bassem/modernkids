@@ -42,16 +42,18 @@ const Customers = () => {
   const loadCustomers = async () => {
     if (!activeVersion) return;
     setLoading(true);
-    const { data, error } = await supabase
-      .from('customers')
-      .select('*')
-      .eq('version_id', activeVersion.id)
-      .order('created_at', { ascending: false });
-
-    if (error) {
+    try {
+      const data = await fetchAllRows<Customer>((from, to) =>
+        supabase
+          .from('customers')
+          .select('*')
+          .eq('version_id', activeVersion.id)
+          .order('created_at', { ascending: false })
+          .range(from, to)
+      );
+      setCustomers(data);
+    } catch {
       toast.error('فشل في تحميل العملاء');
-    } else {
-      setCustomers(data || []);
     }
     setLoading(false);
   };
