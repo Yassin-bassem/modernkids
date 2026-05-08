@@ -12,6 +12,7 @@ import { toast } from 'sonner';
 import QRCode from 'qrcode';
 import { useVersion } from '@/contexts/VersionContext';
 import ProductImage from '@/components/ProductImage';
+import { fetchAllRows } from '@/lib/supabaseFetchAll';
 
 interface Product {
   id: string;
