@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useNavigate, Link, Outlet, useLocation } from 'react-router-dom';
-import { Package, ShoppingCart, Users, BarChart3, LogOut, Wallet, SearchCode, FileText, ImagePlus, Menu, X, Bell, UserCog, ClipboardList, Settings, ListChecks, ShieldAlert } from 'lucide-react';
+import { Package, ShoppingCart, Users, BarChart3, LogOut, Wallet, SearchCode, FileText, ImagePlus, Menu, X, Bell, UserCog, ClipboardList, Settings, ListChecks, ShieldAlert, Database } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import modernKidsLogo from '@/assets/modern-kids-logo.png';
 import { VersionProvider } from '@/contexts/VersionContext';
