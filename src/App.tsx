@@ -22,6 +22,7 @@ import ProductReport from "./pages/admin/ProductReport";
 import OrdersProgress from "./pages/admin/OrdersProgress";
 import SalesControl from "./pages/admin/SalesControl";
 import Settings from "./pages/admin/Settings";
+import Backup from "./pages/admin/Backup";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
