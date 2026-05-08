@@ -12,6 +12,7 @@ import { toast } from 'sonner';
 import QRCode from 'qrcode';
 import { useVersion } from '@/contexts/VersionContext';
 import ProductImage from '@/components/ProductImage';
+import { fetchAllRows } from '@/lib/supabaseFetchAll';
 
 interface Product {
   id: string;
@@ -74,16 +75,18 @@ const Products = () => {
   const loadProducts = async () => {
     if (!activeVersion) return;
     setLoading(true);
-    const { data, error } = await supabase
-      .from('products')
-      .select('*')
-      .eq('version_id', activeVersion.id)
-      .order('created_at', { ascending: false });
-
-    if (error) {
+    try {
+      const data = await fetchAllRows<Product>((from, to) =>
+        supabase
+          .from('products')
+          .select('*')
+          .eq('version_id', activeVersion.id)
+          .order('created_at', { ascending: false })
+          .range(from, to)
+      );
+      setProducts(data);
+    } catch (err) {
       toast.error('فشل في تحميل المنتجات');
-    } else {
-      setProducts(data || []);
     }
     setLoading(false);
   };
