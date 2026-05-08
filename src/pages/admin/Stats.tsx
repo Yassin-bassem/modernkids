@@ -51,11 +51,17 @@ const Stats = () => {
     if (!activeVersion) return;
 
     const [products, orders, customers, alerts, lowStock] = await Promise.all([
-      supabase.from('products').select('id', { count: 'exact' }).eq('version_id', activeVersion.id),
-      supabase.from('orders').select('total').eq('version_id', activeVersion.id),
-      supabase.from('customers').select('id', { count: 'exact' }).eq('version_id', activeVersion.id),
-      supabase.from('stock_alerts').select('*').eq('version_id', activeVersion.id).order('created_at', { ascending: false }),
-      supabase.from('products').select('*').eq('version_id', activeVersion.id).filter('stock_quantity', 'lte', 10),
+      supabase.from('products').select('id', { count: 'exact', head: true }).eq('version_id', activeVersion.id),
+      fetchAllRows<{ total: number }>((from, to) =>
+        supabase.from('orders').select('total').eq('version_id', activeVersion.id).order('created_at', { ascending: false }).range(from, to)
+      ).then(data => ({ data, error: null as any })),
+      supabase.from('customers').select('id', { count: 'exact', head: true }).eq('version_id', activeVersion.id),
+      fetchAllRows<any>((from, to) =>
+        supabase.from('stock_alerts').select('*').eq('version_id', activeVersion.id).order('created_at', { ascending: false }).range(from, to)
+      ).then(data => ({ data, error: null as any })),
+      fetchAllRows<any>((from, to) =>
+        supabase.from('products').select('*').eq('version_id', activeVersion.id).filter('stock_quantity', 'lte', 10).order('id', { ascending: true }).range(from, to)
+      ).then(data => ({ data, error: null as any })),
     ]);
 
     const totalRevenue = orders.data?.reduce((sum, o) => sum + (o.total || 0), 0) || 0;
