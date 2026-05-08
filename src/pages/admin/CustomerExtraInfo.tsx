@@ -29,18 +29,20 @@ const CustomerExtraInfo = () => {
   const loadOrders = async () => {
     if (!activeVersion) return;
     setLoading(true);
-    const { data, error } = await supabase
-      .from('orders')
-      .select('id, order_number, customer_name, extra_info, created_at')
-      .eq('version_id', activeVersion.id)
-      .not('extra_info', 'is', null)
-      .neq('extra_info', '')
-      .order('created_at', { ascending: false });
-
-    if (error) {
+    try {
+      const data = await fetchAllRows<any>((from, to) =>
+        supabase
+          .from('orders')
+          .select('id, order_number, customer_name, extra_info, created_at')
+          .eq('version_id', activeVersion.id)
+          .not('extra_info', 'is', null)
+          .neq('extra_info', '')
+          .order('created_at', { ascending: false })
+          .range(from, to)
+      );
+      setOrders(data);
+    } catch {
       toast.error('فشل في تحميل البيانات');
-    } else {
-      setOrders(data || []);
     }
     setLoading(false);
   };
