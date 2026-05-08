@@ -57,7 +57,7 @@ const AdminDashboard = () => {
     if (isAdmin) return allNavItems;
     // Staff: filter by permissions, always hide staff management and settings
     return allNavItems.filter(item => {
-      if (item.key === 'staff' || item.key === 'settings') return false;
+      if (item.key === 'staff' || item.key === 'settings' || item.key === 'backup') return false;
       return staffPermissions.includes(item.key);
     });
   }, [isAdmin, staffPermissions]);
