@@ -54,6 +54,13 @@ const AdminDashboard = () => {
     }
   }, [navigate]);
 
+  useEffect(() => {
+    if (isAuth) {
+      // Run once-per-day auto backup on desktop/laptop only
+      maybeRunDailyAutoBackup();
+    }
+  }, [isAuth]);
+
   const navItems = useMemo(() => {
     if (isAdmin) return allNavItems;
     // Staff: filter by permissions, always hide staff management and settings
