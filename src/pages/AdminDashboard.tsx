@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import modernKidsLogo from '@/assets/modern-kids-logo.png';
 import { VersionProvider } from '@/contexts/VersionContext';
 import VersionSelector from '@/components/VersionSelector';
+import { maybeRunDailyAutoBackup } from '@/lib/autoBackup';
 
 const allNavItems = [
   { path: '/admin/dashboard', label: 'الإحصائيات', icon: BarChart3, key: 'stats' },
