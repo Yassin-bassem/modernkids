@@ -40,8 +40,9 @@ const SearchByCode = () => {
   const [stockQuantity, setStockQuantity] = useState<number>(0);
 
   const handleSearch = async () => {
-    if (!searchCode.trim()) {
-      toast.error('الرجاء إدخال كود المنتج');
+    const term = searchCode.trim();
+    if (!term) {
+      toast.error('الرجاء إدخال كود أو اسم المنتج');
       return;
     }
 
@@ -54,36 +55,46 @@ const SearchByCode = () => {
     setSearched(true);
 
     try {
-      // Get product name, description and stock
-      const { data: product } = await supabase
+      // Get products matching code or name
+      const { data: productsData } = await supabase
         .from('products')
-        .select('name, description, stock_quantity')
-        .eq('code', searchCode.trim())
-        .eq('version_id', activeVersion.id)
-        .maybeSingle();
+        .select('code, name, description, stock_quantity')
+        .or(`code.eq.${term},name.ilike.%${term}%`)
+        .eq('version_id', activeVersion.id);
 
-      setProductName(product?.name || searchCode.trim());
-      setProductDescription(product?.description || null);
-      setStockQuantity(product?.stock_quantity || 0);
+      const targetProduct = productsData && productsData.length > 0 ? productsData[0] : null;
+      const targetCodes = productsData && productsData.length > 0 
+        ? productsData.map(p => p.code) 
+        : [term];
 
-      // Get all order items with this product code for this version (paginated)
+      setProductName(targetProduct?.name || term);
+      setProductDescription(targetProduct?.description || null);
+      setStockQuantity(targetProduct?.stock_quantity || 0);
+
+      // Get all order items with matching product codes for this version (paginated)
       let orderItems: any[] = [];
       try {
-        orderItems = await fetchAllRows<any>((from, to) =>
-          supabase
+        orderItems = await fetchAllRows<any>((from, to) => {
+          let q = supabase
             .from('order_items')
             .select(`
               order_id,
               quantity,
               price,
+              product_code,
               product_name,
               product_description
             `)
-            .eq('product_code', searchCode.trim())
-            .eq('version_id', activeVersion.id)
-            .order('order_id', { ascending: true })
-            .range(from, to)
-        );
+            .eq('version_id', activeVersion.id);
+
+          if (targetCodes.length === 1) {
+            q = q.eq('product_code', targetCodes[0]);
+          } else {
+            q = q.in('product_code', targetCodes);
+          }
+
+          return q.order('order_id', { ascending: true }).range(from, to);
+        });
       } catch (err: any) {
         throw err;
       }
@@ -108,7 +119,7 @@ const SearchByCode = () => {
       // Combine order items with order details
       const combinedData: OrderWithProduct[] = orderItems.map(item => {
         const order = ordersData?.find(o => o.id === item.order_id);
-        const itemMultiplier = getDescriptionMultiplier(item.product_description || product?.description);
+        const itemMultiplier = getDescriptionMultiplier(item.product_description || targetProduct?.description);
         return {
           order_id: item.order_id,
           order_number: order?.order_number || 0,
@@ -124,8 +135,8 @@ const SearchByCode = () => {
       }).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
       setOrders(combinedData);
-      if (product?.name) {
-        setProductName(product.name);
+      if (targetProduct?.name) {
+        setProductName(targetProduct.name);
       }
     } catch (error) {
       console.error('Error searching:', error);
@@ -170,14 +181,14 @@ const SearchByCode = () => {
 
   return (
     <div className="space-y-6" dir="rtl">
-      <h1 className="text-2xl font-bold">البحث بالكود</h1>
+      <h1 className="text-2xl font-bold">البحث بالكود أو الاسم</h1>
 
       {/* Search Box */}
       <Card>
         <CardContent className="pt-6">
           <div className="flex gap-3">
             <Input
-              placeholder="أدخل كود المنتج..."
+              placeholder="أدخل كود أو اسم المنتج..."
               value={searchCode}
               onChange={(e) => setSearchCode(e.target.value)}
               onKeyPress={(e) => e.key === 'Enter' && handleSearch()}

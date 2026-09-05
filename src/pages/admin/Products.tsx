@@ -107,7 +107,11 @@ const Products = () => {
   };
 
   const filteredProducts = products.filter((p) => {
-    const matchesSearch = !searchCode || p.code.toLowerCase().includes(searchCode.toLowerCase());
+    const term = searchCode.toLowerCase();
+    const matchesSearch =
+      !searchCode ||
+      p.code.toLowerCase().includes(term) ||
+      p.name.toLowerCase().includes(term);
     const matchesCategory =
       selectedCategoryFilter === 'all' ||
       (selectedCategoryFilter === 'uncategorized' ? !p.category_id : p.category_id === selectedCategoryFilter);
@@ -576,11 +580,10 @@ const Products = () => {
       <div className="relative max-w-md">
         <Search className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
         <Input
-          placeholder="بحث بالكود..."
+          placeholder="بحث بالكود أو الاسم..."
           value={searchCode}
           onChange={(e) => setSearchCode(e.target.value)}
           className="pr-10"
-          dir="ltr"
         />
       </div>
 

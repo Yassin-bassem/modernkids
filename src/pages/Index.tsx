@@ -78,7 +78,7 @@ const Index = () => {
         {/* Hero Section */}
         <div className="text-center space-y-2 py-4">
           <h1 className="text-3xl font-bold gradient-text">مرحباً بك في Modern Kids</h1>
-          <p className="text-muted-foreground">امسح كود المنتج أو ابحث بالكود لإضافته للسلة</p>
+          <p className="text-muted-foreground">امسح كود المنتج أو ابحث بالكود أو الاسم لإضافته للسلة</p>
         </div>
 
         {/* QR Scanner - Primary Action */}
@@ -119,7 +119,7 @@ const Index = () => {
           <div className="rounded-2xl border-2 border-border bg-card p-4 shadow-baby">
             <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
               <span className="h-2 w-2 rounded-full bg-secondary" />
-              البحث بكود المنتج
+              البحث عن منتج (بالكود أو الاسم)
             </h2>
             <ProductSearch />
           </div>
