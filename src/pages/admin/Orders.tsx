@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Eye, Edit2, Trash2, FileText, Search, ShoppingCart, Plus, Copy } from 'lucide-react';
+import { Eye, Edit2, Trash2, FileText, Search, ShoppingCart, Plus, Copy, FileSpreadsheet } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
@@ -10,6 +10,7 @@ import { fetchAllRows } from '@/lib/supabaseFetchAll';
 import { toast } from 'sonner';
 import logoImage from '@/assets/modern-kids-logo.png';
 import { useVersion } from '@/contexts/VersionContext';
+import * as XLSX from 'xlsx';
 
 interface OrderItem {
   id: string;
@@ -546,14 +547,90 @@ const Orders = () => {
       )
     : orders;
 
+  const handleExportExcel = () => {
+    if (!filteredOrders || filteredOrders.length === 0) {
+      toast.error('لا توجد طلبات للتصدير');
+      return;
+    }
+
+    try {
+      const sheetData = [
+        [
+          'رقم الطلب',
+          'اسم العميل',
+          'اسم المحل',
+          'رقم الهاتف',
+          'العنوان / المكان',
+          'الإجمالي قبل العربون',
+          'مبلغ العربون',
+          'نوع العربون',
+          'المتبقي بعد العربون',
+          'الحالة',
+          'التاريخ'
+        ]
+      ];
+
+      filteredOrders.forEach((o) => {
+        sheetData.push([
+          o.order_number,
+          o.customer_name || '',
+          o.shop_name || '',
+          o.phone || '',
+          o.address || '',
+          o.subtotal || 0,
+          o.deposit_amount || 0,
+          o.deposit_method || '',
+          o.total || 0,
+          statusLabels[o.status] || o.status,
+          o.created_at ? new Date(o.created_at).toLocaleDateString('ar-EG') : ''
+        ]);
+      });
+
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.aoa_to_sheet(sheetData);
+
+      ws['!cols'] = [
+        { wch: 12 },
+        { wch: 22 },
+        { wch: 20 },
+        { wch: 16 },
+        { wch: 28 },
+        { wch: 20 },
+        { wch: 15 },
+        { wch: 16 },
+        { wch: 20 },
+        { wch: 14 },
+        { wch: 15 },
+      ];
+
+      ws['!views'] = [{ RTL: true }];
+
+      XLSX.utils.book_append_sheet(wb, ws, 'الطلبات');
+      const dateStr = new Date().toISOString().split('T')[0];
+      XLSX.writeFile(wb, `تقرير_الطلبات_${dateStr}.xlsx`);
+      toast.success('تم تصدير شيت الإكسيل بنجاح 📊');
+    } catch (err) {
+      console.error('Excel export error:', err);
+      toast.error('حدث خطأ أثناء تصدير ملف الإكسيل');
+    }
+  };
+
   if (!activeVersion) {
     return <div className="text-center py-12 text-muted-foreground">جاري التحميل...</div>;
   }
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-2">
         <h1 className="text-2xl font-bold">الطلبات</h1>
+        <Button
+          onClick={handleExportExcel}
+          variant="outline"
+          className="gap-2 border-green-600 text-green-600 hover:bg-green-50 hover:text-green-700 font-bold"
+        >
+          <FileSpreadsheet className="h-4 w-4 text-green-600" />
+          تصدير إكسيل ({filteredOrders.length})
+        </Button>
       </div>
 
       <div className="relative max-w-md">
