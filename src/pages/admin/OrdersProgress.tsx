@@ -6,10 +6,11 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Check, Package, Search, ChevronDown, ChevronUp, Printer } from 'lucide-react';
+import { Check, Package, Search, ChevronDown, ChevronUp, Printer, FileSpreadsheet } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { fetchAllRows } from '@/lib/supabaseFetchAll';
 import logoImage from '@/assets/modern-kids-logo.png';
+import * as XLSX from 'xlsx';
 
 interface OrderItem {
   id: string;
@@ -291,6 +292,14 @@ const OrdersProgress = () => {
     window.open(url, '_blank');
   };
 
+const formatDepositMethod = (method: string | null): string => {
+  if (!method) return '-';
+  if (method === 'instapay') return 'InstaPay';
+  if (method === 'vodafone_cash') return 'فودافون كاش';
+  if (method === 'cash') return 'كاش';
+  return method;
+};
+
   const filtered = orders.filter((o) => {
     if (filter === 'finished' && !isOrderFinished(o)) return false;
     if (filter === 'unfinished' && isOrderFinished(o)) return false;
@@ -308,17 +317,208 @@ const OrdersProgress = () => {
   const finishedCount = orders.filter(isOrderFinished).length;
   const unfinishedCount = orders.length - finishedCount;
 
+  const exportToExcel = () => {
+    if (filtered.length === 0) {
+      toast({ title: 'تنبيه', description: 'لا توجد طلبات لتصديرها', variant: 'destructive' });
+      return;
+    }
+
+    try {
+      const wb = XLSX.utils.book_new();
+
+      // 1. Orders Summary Sheet (ملخص الطلبات)
+      const summaryRows = filtered.map((order) => {
+        const finished = isOrderFinished(order);
+        const deliveredItems = order.items.filter((i) => i.is_delivered);
+        const remainingItems = order.items.filter((i) => !i.is_delivered);
+
+        const deliveredText = deliveredItems
+          .map((i) => {
+            const mult = getDescriptionMultiplier(i.product_description);
+            const qty = mult > 1 ? i.quantity * mult : i.quantity;
+            return `[${i.product_code}] ${i.product_name} (${qty} قطعة)`;
+          })
+          .join(' | ');
+
+        const remainingText = remainingItems
+          .map((i) => {
+            const mult = getDescriptionMultiplier(i.product_description);
+            const qty = mult > 1 ? i.quantity * mult : i.quantity;
+            return `[${i.product_code}] ${i.product_name} (${qty} قطعة)`;
+          })
+          .join(' | ');
+
+        const remainingBalance = Math.max(0, (order.total || 0) - (order.deposit_amount || 0));
+
+        return {
+          'رقم الطلب': order.order_number,
+          'تاريخ الطلب': new Date(order.created_at).toLocaleDateString('ar-EG'),
+          'اسم العميل': order.customer_name,
+          'رقم الهاتف': order.phone,
+          'اسم المحل': order.shop_name || '',
+          'العنوان': order.address || '',
+          'حالة الطلب': finished ? 'مكتمل' : 'غير مكتمل',
+          'عدد الأصناف الإجمالي': order.items.length,
+          'عدد الأصناف المُسلّمة': deliveredItems.length,
+          'عدد الأصناف المتبقية': remainingItems.length,
+          'المنتجات المستلمة (بالتفصيل)': deliveredText || 'لا يوجد',
+          'المنتجات المتبقية (بالتفصيل)': remainingText || 'لا يوجد',
+          'إجمالي الطلب (ج.م)': order.total || 0,
+          'العربون (ج.م)': order.deposit_amount || 0,
+          'طريقة دفع العربون': formatDepositMethod(order.deposit_method),
+          'المبلغ المتبقي (ج.م)': remainingBalance,
+          'ملاحظات': order.extra_info || '',
+        };
+      });
+
+      const wsSummary = XLSX.utils.json_to_sheet(summaryRows);
+      wsSummary['!cols'] = [
+        { wch: 12 },
+        { wch: 14 },
+        { wch: 22 },
+        { wch: 15 },
+        { wch: 18 },
+        { wch: 25 },
+        { wch: 14 },
+        { wch: 18 },
+        { wch: 18 },
+        { wch: 18 },
+        { wch: 50 },
+        { wch: 50 },
+        { wch: 16 },
+        { wch: 14 },
+        { wch: 16 },
+        { wch: 16 },
+        { wch: 25 },
+      ];
+
+      XLSX.utils.book_append_sheet(wb, wsSummary, 'ملخص الطلبات');
+
+      // 2. All Items Detailed Sheet (تفاصيل منتجات الطلبات)
+      const allItemRows: any[] = [];
+      filtered.forEach((order) => {
+        const finished = isOrderFinished(order);
+        order.items.forEach((item) => {
+          const mult = getDescriptionMultiplier(item.product_description);
+          const totalQty = mult > 1 ? item.quantity * mult : item.quantity;
+          const itemTotal = calculateItemTotal(item);
+
+          allItemRows.push({
+            'رقم الطلب': order.order_number,
+            'اسم العميل': order.customer_name,
+            'رقم الهاتف': order.phone,
+            'اسم المحل': order.shop_name || '',
+            'كود المنتج': item.product_code,
+            'اسم المنتج': item.product_name,
+            'الوصف / التعبئة': item.product_description || '',
+            'الكمية': totalQty,
+            'سعر القطعة (ج.م)': item.price,
+            'إجمالي السعر (ج.م)': itemTotal,
+            'حالة المنتج': item.is_delivered ? 'تم التسليم' : 'غير مُسلّم (متبقي)',
+            'حالة الطلب الإجمالية': finished ? 'مكتمل' : 'غير مكتمل',
+            'تاريخ الطلب': new Date(order.created_at).toLocaleDateString('ar-EG'),
+          });
+        });
+      });
+
+      if (allItemRows.length > 0) {
+        const wsItems = XLSX.utils.json_to_sheet(allItemRows);
+        wsItems['!cols'] = [
+          { wch: 12 },
+          { wch: 22 },
+          { wch: 15 },
+          { wch: 18 },
+          { wch: 15 },
+          { wch: 25 },
+          { wch: 18 },
+          { wch: 10 },
+          { wch: 14 },
+          { wch: 16 },
+          { wch: 18 },
+          { wch: 18 },
+          { wch: 14 },
+        ];
+        XLSX.utils.book_append_sheet(wb, wsItems, 'تفاصيل المنتجات');
+      }
+
+      // 3. Remaining Items Only Sheet (المنتجات المتبقية فقط)
+      const remainingItemRows: any[] = [];
+      filtered.forEach((order) => {
+        const undeliveredItems = order.items.filter((i) => !i.is_delivered);
+        undeliveredItems.forEach((item) => {
+          const mult = getDescriptionMultiplier(item.product_description);
+          const totalQty = mult > 1 ? item.quantity * mult : item.quantity;
+          const itemTotal = calculateItemTotal(item);
+
+          remainingItemRows.push({
+            'رقم الطلب': order.order_number,
+            'اسم العميل': order.customer_name,
+            'رقم الهاتف': order.phone,
+            'اسم المحل': order.shop_name || '',
+            'العنوان': order.address || '',
+            'كود المنتج': item.product_code,
+            'اسم المنتج': item.product_name,
+            'الوصف / التعبئة': item.product_description || '',
+            'الكمية المتبقية': totalQty,
+            'سعر القطعة (ج.م)': item.price,
+            'إجمالي المتبقي (ج.م)': itemTotal,
+            'تاريخ الطلب': new Date(order.created_at).toLocaleDateString('ar-EG'),
+            'ملاحظات الطلب': order.extra_info || '',
+          });
+        });
+      });
+
+      if (remainingItemRows.length > 0) {
+        const wsRemaining = XLSX.utils.json_to_sheet(remainingItemRows);
+        wsRemaining['!cols'] = [
+          { wch: 12 },
+          { wch: 22 },
+          { wch: 15 },
+          { wch: 18 },
+          { wch: 25 },
+          { wch: 15 },
+          { wch: 25 },
+          { wch: 18 },
+          { wch: 14 },
+          { wch: 14 },
+          { wch: 16 },
+          { wch: 14 },
+          { wch: 25 },
+        ];
+        XLSX.utils.book_append_sheet(wb, wsRemaining, 'المنتجات المتبقية');
+      }
+
+      const dateStr = new Date().toLocaleDateString('en-CA');
+      const fileName = `تقرير_تقدم_الطلبات_${dateStr}.xlsx`;
+      XLSX.writeFile(wb, fileName);
+      toast({ title: 'تم تصدير ملف الإكسيل بنجاح 📊', description: `تم حفظ الملف باسم ${fileName}` });
+    } catch (err) {
+      console.error(err);
+      toast({ title: 'خطأ', description: 'حدث خطأ أثناء إنشاء ملف الإكسيل', variant: 'destructive' });
+    }
+  };
+
   return (
     <div className="space-y-6" dir="rtl">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <h1 className="text-2xl font-bold">تقدم الطلبات</h1>
-        <div className="flex gap-2">
-          <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/30">
-            مكتمل: {finishedCount}
-          </Badge>
-          <Badge variant="outline" className="bg-orange-500/10 text-orange-600 border-orange-500/30">
-            غير مكتمل: {unfinishedCount}
-          </Badge>
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex gap-2">
+            <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/30">
+              مكتمل: {finishedCount}
+            </Badge>
+            <Badge variant="outline" className="bg-orange-500/10 text-orange-600 border-orange-500/30">
+              غير مكتمل: {unfinishedCount}
+            </Badge>
+          </div>
+          <Button
+            onClick={exportToExcel}
+            className="bg-emerald-600 hover:bg-emerald-700 text-white flex items-center gap-2"
+            disabled={loading || filtered.length === 0}
+          >
+            <FileSpreadsheet className="h-4 w-4" />
+            تصدير إكسيل ({filtered.length})
+          </Button>
         </div>
       </div>
 
