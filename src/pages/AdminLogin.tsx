@@ -4,9 +4,11 @@ import { Lock, Eye, EyeOff, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import modernKidsLogo from '@/assets/modern-kids-logo.png';
+import { allNavItems } from './AdminDashboard';
 
 const AdminLogin = () => {
   const navigate = useNavigate();
@@ -14,6 +16,22 @@ const AdminLogin = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [loginMode, setLoginMode] = useState<'admin' | 'staff'>('admin');
   const [loading, setLoading] = useState(false);
+  const [staffList, setStaffList] = useState<{ id: string; name: string }[]>([]);
+  const [selectedStaffId, setSelectedStaffId] = useState<string>('');
+
+  useEffect(() => {
+    const fetchStaff = async () => {
+      const { data } = await supabase
+        .from('staff_members')
+        .select('id, name')
+        .eq('is_active', true)
+        .order('name');
+      if (data) {
+        setStaffList(data);
+      }
+    };
+    fetchStaff();
+  }, []);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -31,6 +49,7 @@ const AdminLogin = () => {
 
       const adminPassword = data?.value || '0929';
       if (password === adminPassword) {
+        sessionStorage.removeItem('modernkids_staff');
         sessionStorage.setItem('modernkids_admin', 'true');
         toast.success('تم تسجيل الدخول بنجاح');
         navigate('/admin/dashboard');
@@ -39,21 +58,51 @@ const AdminLogin = () => {
       }
     } else {
       // Staff login
-      const { data, error } = await supabase
-        .from('staff_members')
-        .select('*')
-        .eq('password', password)
-        .eq('is_active', true);
+      let staffMember: any = null;
 
-      setLoading(false);
+      if (selectedStaffId) {
+        const { data, error } = await supabase
+          .from('staff_members')
+          .select('*')
+          .eq('id', selectedStaffId)
+          .eq('password', password)
+          .eq('is_active', true);
 
-      if (error || !data || data.length === 0) {
-        toast.error('كلمة المرور غير صحيحة أو الحساب غير نشط');
-        return;
+        setLoading(false);
+
+        if (error || !data || data.length === 0) {
+          toast.error('كلمة المرور غير صحيحة لهذا الموظف');
+          return;
+        }
+        staffMember = data[0];
+      } else {
+        const { data, error } = await supabase
+          .from('staff_members')
+          .select('*')
+          .eq('password', password)
+          .eq('is_active', true);
+
+        setLoading(false);
+
+        if (error || !data || data.length === 0) {
+          toast.error('كلمة المرور غير صحيحة أو الحساب غير نشط');
+          return;
+        }
+
+        if (data.length > 1) {
+          const names = data.map((d: any) => `"${d.name}"`).join(' و ');
+          toast.error(`يوجد ${data.length} موظفين بنفس كلمة المرور (${names})! يرجى اختيار اسم الموظف من القائمة أولاً.`);
+          return;
+        }
+
+        staffMember = data[0];
       }
 
-      const staffMember = data[0];
-      const permissions: string[] = (staffMember as any).permissions || [];
+      const permissions: string[] = Array.isArray((staffMember as any).permissions)
+        ? (staffMember as any).permissions
+        : [];
+
+      sessionStorage.removeItem('modernkids_admin');
       sessionStorage.setItem('modernkids_staff', JSON.stringify({
         id: staffMember.id,
         name: staffMember.name,
@@ -61,9 +110,10 @@ const AdminLogin = () => {
       }));
       toast.success(`مرحباً ${staffMember.name}`);
       
-      // If staff has permissions → admin panel, otherwise → home page for orders
+      // If staff has permissions → first permitted panel page, otherwise → home page for orders
       if (permissions.length > 0) {
-        navigate('/admin/dashboard');
+        const firstPerm = allNavItems.find(item => permissions.includes(item.key));
+        navigate(firstPerm ? firstPerm.path : '/admin/dashboard');
       } else {
         navigate('/');
       }
@@ -87,7 +137,7 @@ const AdminLogin = () => {
               type="button"
               variant={loginMode === 'admin' ? 'default' : 'outline'}
               size="sm"
-              onClick={() => { setLoginMode('admin'); setPassword(''); }}
+              onClick={() => { setLoginMode('admin'); setPassword(''); setSelectedStaffId(''); }}
             >
               <Lock className="h-4 w-4 ml-1" />
               أدمن
@@ -105,6 +155,41 @@ const AdminLogin = () => {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleLogin} className="space-y-6">
+            {loginMode === 'staff' && (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-sm font-medium flex items-center gap-2">
+                    <Users className="h-4 w-4 text-muted-foreground" />
+                    اسم الموظف (مستحسن)
+                  </label>
+                  {selectedStaffId && (
+                    <button
+                      type="button"
+                      onClick={() => setSelectedStaffId('')}
+                      className="text-xs text-primary hover:underline"
+                    >
+                      إلغاء التحديد
+                    </button>
+                  )}
+                </div>
+                <Select value={selectedStaffId} onValueChange={setSelectedStaffId}>
+                  <SelectTrigger className="w-full text-right" dir="rtl">
+                    <SelectValue placeholder="اختر اسمك (أو أدخل الرمز مباشرة)" />
+                  </SelectTrigger>
+                  <SelectContent dir="rtl">
+                    {staffList.map((member) => (
+                      <SelectItem key={member.id} value={member.id}>
+                        {member.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-[11px] text-muted-foreground">
+                  اختيار اسمك يضمن فتح حسابك بصلاحياتك المحددة دون تداخل.
+                </p>
+              </div>
+            )}
+
             <div className="space-y-2">
               <label className="text-sm font-medium flex items-center gap-2">
                 <Lock className="h-4 w-4 text-muted-foreground" />

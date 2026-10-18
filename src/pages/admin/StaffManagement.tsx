@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Users, Plus, Trash2, Eye, EyeOff, Shield } from 'lucide-react';
+import { Users, Plus, Trash2, Eye, EyeOff, Shield, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
@@ -31,6 +31,8 @@ const AVAILABLE_PERMISSIONS = [
   { key: 'product-images', label: 'صور المنتجات' },
   { key: 'stock-alerts', label: 'تنبيهات المخزون' },
   { key: 'product-report', label: 'تقرير المنتجات' },
+  { key: 'orders-progress', label: 'تقدم الطلبات' },
+  { key: 'sales-control', label: 'التحكم بالبيع' },
 ];
 
 const StaffManagement = () => {
@@ -88,6 +90,15 @@ const StaffManagement = () => {
     }
     if (!/^\d{4}$/.test(newPassword)) {
       toast.error('كلمة المرور يجب أن تكون 4 أرقام');
+      return;
+    }
+
+    // Check for duplicate password with other staff members
+    const duplicate = staff.find(
+      m => m.password === newPassword && (!editingStaff || m.id !== editingStaff.id)
+    );
+    if (duplicate) {
+      toast.error(`كلمة المرور (${newPassword}) مستخدمة بالفعل للموظف "${duplicate.name}". يجب أن تكون كلمة المرور فريدة لكل موظف لمنع تداخل الحسابات.`);
       return;
     }
 
@@ -155,6 +166,14 @@ const StaffManagement = () => {
     }
   };
 
+  const duplicatePasswords = staff.reduce<Record<string, StaffMember[]>>((acc, member) => {
+    acc[member.password] = acc[member.password] || [];
+    acc[member.password].push(member);
+    return acc;
+  }, {});
+
+  const conflictingPasswords = Object.entries(duplicatePasswords).filter(([_, list]) => list.length > 1);
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -167,6 +186,27 @@ const StaffManagement = () => {
           إضافة موظف
         </Button>
       </div>
+
+      {conflictingPasswords.length > 0 && (
+        <Card className="border-amber-400 bg-amber-50 dark:bg-amber-950/20 text-amber-900 dark:text-amber-200">
+          <CardContent className="p-4 space-y-2">
+            <div className="flex items-center gap-2 font-bold text-amber-800 dark:text-amber-300">
+              <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400 flex-shrink-0" />
+              <span>تنبيه هـام: يوجد موظفون يشتركون في نفس كلمة المرور</span>
+            </div>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              عندما يشترك أكثر من موظف في نفس الرمز (4 أرقام)، فإن تسجيل الدخول قد يفتح حساب الموظف الآخر ويطبق صلاحياته بدلاً من الحساب المطلوب. يرجى الضغط على أيقونة الدرع (🛡️) لتعديل كلمة المرور وجعلها فريدة لكل موظف:
+            </p>
+            <div className="flex flex-wrap gap-2 pt-1">
+              {conflictingPasswords.map(([pwd, list]) => (
+                <Badge key={pwd} variant="outline" className="border-amber-400 bg-amber-100/60 dark:bg-amber-900/30 text-amber-900 dark:text-amber-200 text-xs">
+                  الرمز {pwd}: {list.map(m => m.name).join(' و ')}
+                </Badge>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {loading ? (
         <div className="text-center py-12 text-muted-foreground">جاري التحميل...</div>
@@ -188,7 +228,15 @@ const StaffManagement = () => {
                       {member.name.charAt(0)}
                     </div>
                     <div>
-                      <p className="font-bold text-lg">{member.name}</p>
+                      <div className="flex items-center gap-2">
+                        <p className="font-bold text-lg">{member.name}</p>
+                        {duplicatePasswords[member.password]?.length > 1 && (
+                          <Badge variant="destructive" className="text-[10px] gap-1 py-0 px-2 font-normal">
+                            <AlertTriangle className="h-3 w-3" />
+                            رمز مكرر مع {duplicatePasswords[member.password].filter(m => m.id !== member.id).map(m => m.name).join(', ')}
+                          </Badge>
+                        )}
+                      </div>
                       <div className="flex items-center gap-2 mt-1">
                         <span className="text-sm text-muted-foreground">كلمة المرور:</span>
                         <span className="font-mono text-sm" dir="ltr">
@@ -228,10 +276,10 @@ const StaffManagement = () => {
                         {member.is_active ? 'نشط' : 'معطل'}
                       </Badge>
                     </div>
-                    <Button size="sm" variant="outline" onClick={() => openEditDialog(member)}>
+                    <Button size="sm" variant="outline" onClick={() => openEditDialog(member)} title="تعديل الموظف والصلاحيات">
                       <Shield className="h-4 w-4" />
                     </Button>
-                    <Button size="sm" variant="outline" className="text-destructive" onClick={() => handleDelete(member.id)}>
+                    <Button size="sm" variant="outline" className="text-destructive" onClick={() => handleDelete(member.id)} title="حذف">
                       <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>

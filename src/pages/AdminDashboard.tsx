@@ -1,13 +1,14 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useNavigate, Link, Outlet, useLocation } from 'react-router-dom';
-import { Package, ShoppingCart, Users, BarChart3, LogOut, Wallet, SearchCode, FileText, ImagePlus, Menu, X, Bell, UserCog, ClipboardList, Settings, ListChecks, ShieldAlert, Database } from 'lucide-react';
+import { Package, ShoppingCart, Users, BarChart3, LogOut, Wallet, SearchCode, FileText, ImagePlus, Menu, X, Bell, UserCog, ClipboardList, Settings, ListChecks, ShieldAlert, Database, Shield } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import modernKidsLogo from '@/assets/modern-kids-logo.png';
 import { VersionProvider } from '@/contexts/VersionContext';
 import VersionSelector from '@/components/VersionSelector';
 import { maybeRunDailyAutoBackup } from '@/lib/autoBackup';
+import { toast } from 'sonner';
 
-const allNavItems = [
+export const allNavItems = [
   { path: '/admin/dashboard', label: 'الإحصائيات', icon: BarChart3, key: 'stats' },
   { path: '/admin/dashboard/products', label: 'المنتجات', icon: Package, key: 'products' },
   { path: '/admin/dashboard/orders', label: 'الطلبات', icon: ShoppingCart, key: 'orders' },
@@ -30,6 +31,7 @@ const AdminDashboard = () => {
   const location = useLocation();
   const [isAuth, setIsAuth] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [staffName, setStaffName] = useState<string>('');
   const [staffPermissions, setStaffPermissions] = useState<string[]>([]);
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
@@ -40,11 +42,13 @@ const AdminDashboard = () => {
     if (adminAuth) {
       setIsAuth(true);
       setIsAdmin(true);
+      setStaffName('مدير النظام');
     } else if (staffAuth) {
       try {
         const staff = JSON.parse(staffAuth);
         setIsAuth(true);
         setIsAdmin(false);
+        setStaffName(staff.name || 'موظف');
         setStaffPermissions(staff.permissions || []);
       } catch {
         navigate('/admin');
@@ -63,12 +67,41 @@ const AdminDashboard = () => {
 
   const navItems = useMemo(() => {
     if (isAdmin) return allNavItems;
-    // Staff: filter by permissions, always hide staff management and settings
+    // Staff: filter by permissions, always hide staff management, backup, and settings
     return allNavItems.filter(item => {
       if (item.key === 'staff' || item.key === 'settings' || item.key === 'backup') return false;
       return staffPermissions.includes(item.key);
     });
   }, [isAdmin, staffPermissions]);
+
+  // Route protection for staff: prevent accessing unpermitted pages directly via URL
+  useEffect(() => {
+    if (!isAuth || isAdmin) return;
+
+    if (location.pathname === '/admin/dashboard') {
+      if (!staffPermissions.includes('stats')) {
+        if (navItems.length > 0) {
+          navigate(navItems[0].path, { replace: true });
+        } else {
+          navigate('/', { replace: true });
+        }
+      }
+      return;
+    }
+
+    const currentItem = allNavItems.find(item => item.path === location.pathname);
+    if (currentItem) {
+      const isAllowed = navItems.some(item => item.key === currentItem.key);
+      if (!isAllowed) {
+        toast.error(`ليس لديك صلاحية للوصول إلى صفحة "${currentItem.label}"`);
+        if (navItems.length > 0) {
+          navigate(navItems[0].path, { replace: true });
+        } else {
+          navigate('/', { replace: true });
+        }
+      }
+    }
+  }, [isAuth, isAdmin, location.pathname, navItems, staffPermissions, navigate]);
 
   const handleLogout = () => {
     sessionStorage.removeItem('modernkids_admin');
@@ -118,6 +151,27 @@ const AdminDashboard = () => {
               >
                 {sidebarOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
               </Button>
+            </div>
+          </div>
+
+          {/* Current Logged In Account Badge */}
+          <div className="px-4 py-2.5 border-b border-border bg-muted/40 min-w-[256px] lg:min-w-0">
+            <div className="flex items-center gap-2.5">
+              <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 text-xs font-bold ${
+                isAdmin 
+                  ? 'bg-primary/20 text-primary' 
+                  : 'bg-secondary/30 text-secondary-foreground'
+              }`}>
+                {isAdmin ? <Shield className="h-4 w-4" /> : <Users className="h-4 w-4" />}
+              </div>
+              {sidebarOpen && (
+                <div className="overflow-hidden min-w-0 flex-1">
+                  <p className="text-[11px] text-muted-foreground leading-none mb-1">الحساب النشط</p>
+                  <p className="text-sm font-bold truncate leading-tight">
+                    {isAdmin ? 'مدير النظام' : `الموظف: ${staffName}`}
+                  </p>
+                </div>
+              )}
             </div>
           </div>
 
