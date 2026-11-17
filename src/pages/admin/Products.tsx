@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { Plus, Edit2, Trash2, QrCode, Search, Package, Printer, CheckSquare, Square, Tag, FolderPlus } from 'lucide-react';
+import { useEffect, useState, useRef } from 'react';
+import { Plus, Edit2, Trash2, QrCode, Search, Package, Printer, CheckSquare, Square, Tag, FolderPlus, Upload, Download, FileSpreadsheet, AlertCircle, CheckCircle2, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
@@ -13,6 +13,7 @@ import QRCode from 'qrcode';
 import { useVersion } from '@/contexts/VersionContext';
 import ProductImage from '@/components/ProductImage';
 import { fetchAllRows } from '@/lib/supabaseFetchAll';
+import * as XLSX from 'xlsx';
 
 interface Product {
   id: string;
@@ -54,6 +55,11 @@ const Products = () => {
   const [rangeEnd, setRangeEnd] = useState('');
   const [categoryDialogOpen, setCategoryDialogOpen] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const [importRows, setImportRows] = useState<any[]>([]);
+  const [importLoading, setImportLoading] = useState(false);
+  const [importFileName, setImportFileName] = useState('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [formData, setFormData] = useState({
     code: '',
@@ -411,6 +417,181 @@ const Products = () => {
     setFormData({ code: '', name: '', description: '', price: 0, stock_quantity: 0, low_stock_threshold: 10, category_id: '' });
   };
 
+  // ─── Excel Import ─────────────────────────────────────────────────────────
+
+  const downloadTemplate = () => {
+    const wb = XLSX.utils.book_new();
+    const templateData = [
+      ['الكود', 'السعر', 'الاسم', 'السعر/عدد الثري', 'التصنيف', 'الكمية (قطع ليس ثريهات)'],
+      ['1001',  '150',  'بيبى ولادى', '150/6', 'بيبى', '120'],
+      ['1002',  '200',  'بيبى بناتى', '200/4', 'بيبى', '80'],
+    ];
+    const ws = XLSX.utils.aoa_to_sheet(templateData);
+    ws['!cols'] = [
+      { wch: 12 }, // الكود
+      { wch: 10 }, // السعر
+      { wch: 25 }, // الاسم
+      { wch: 18 }, // السعر/عدد الثري
+      { wch: 15 }, // التصنيف
+      { wch: 22 }, // الكمية
+    ];
+    XLSX.utils.book_append_sheet(wb, ws, 'نموذج المنتجات');
+    XLSX.writeFile(wb, 'نموذج_استيراد_منتجات.xlsx');
+    toast.success('تم تحميل النموذج ✅');
+  };
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImportFileName(file.name);
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      try {
+        const data = new Uint8Array(evt.target?.result as ArrayBuffer);
+        const wb = XLSX.read(data, { type: 'array' });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const rows: any[][] = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+        if (rows.length < 2) {
+          toast.error('الملف فارغ أو لا يحتوي على بيانات');
+          return;
+        }
+        // Map rows (skip header row 0)
+        const header = rows[0] as string[];
+        const colIndex = (name: string) =>
+          header.findIndex((h) => h?.toString().trim().includes(name));
+
+        const idxCode     = colIndex('الكود');
+        const idxPrice    = colIndex('السعر');
+        const idxName     = colIndex('الاسم');
+        const idxDesc     = colIndex('ثري');
+        const idxCat      = colIndex('التصنيف');
+        const idxQty      = colIndex('الكمية');
+
+        if (idxCode === -1 || idxName === -1) {
+          toast.error('الملف لا يحتوي على عمودَي الكود والاسم المطلوبَين');
+          return;
+        }
+
+        const parsed = rows.slice(1)
+          .filter((r) => r[idxCode]?.toString().trim())
+          .map((r) => ({
+            code:           r[idxCode]?.toString().trim() ?? '',
+            price:          parseFloat(r[idxPrice]?.toString()) || 0,
+            name:           r[idxName]?.toString().trim() ?? '',
+            description:    idxDesc  !== -1 ? r[idxDesc]?.toString().trim()  : '',
+            categoryName:   idxCat   !== -1 ? r[idxCat]?.toString().trim()   : '',
+            stock_quantity: idxQty   !== -1 ? parseInt(r[idxQty]?.toString()) || 0 : 0,
+          }));
+
+        setImportRows(parsed);
+      } catch {
+        toast.error('فشل في قراءة الملف. تأكد أنه ملف Excel صحيح');
+      }
+    };
+    reader.readAsArrayBuffer(file);
+    // Reset so same file can be re-uploaded
+    e.target.value = '';
+  };
+
+  const handleImportSubmit = async () => {
+    if (!activeVersion || importRows.length === 0) return;
+    setImportLoading(true);
+
+    try {
+      // 1. Build category map (name → id), create missing categories
+      const uniqueCatNames = [...new Set(importRows.map((r) => r.categoryName).filter(Boolean))];
+      const catMap: Record<string, string> = {};
+
+      // Load existing categories
+      const { data: existingCats } = await supabase
+        .from('categories')
+        .select('id, name')
+        .eq('version_id', activeVersion.id);
+
+      (existingCats || []).forEach((c: any) => { catMap[c.name] = c.id; });
+
+      // Insert missing ones
+      for (const catName of uniqueCatNames) {
+        if (!catMap[catName]) {
+          const { data: inserted } = await supabase
+            .from('categories')
+            .insert({ name: catName, version_id: activeVersion.id })
+            .select('id, name')
+            .single();
+          if (inserted) catMap[inserted.name] = inserted.id;
+        }
+      }
+
+      // 2. Load existing product codes to decide insert vs upsert
+      const existingCodes = new Set(products.map((p) => p.code));
+
+      const toInsert = importRows
+        .filter((r) => !existingCodes.has(r.code))
+        .map((r) => ({
+          code:                r.code,
+          name:                r.name,
+          description:         r.description || null,
+          price:               r.price,
+          stock_quantity:      r.stock_quantity,
+          low_stock_threshold: 10,
+          category_id:         r.categoryName ? (catMap[r.categoryName] ?? null) : null,
+          version_id:          activeVersion.id,
+        }));
+
+      const toUpdate = importRows
+        .filter((r) => existingCodes.has(r.code))
+        .map((r) => {
+          const existing = products.find((p) => p.code === r.code)!;
+          return {
+            id:              existing.id,
+            code:            r.code,
+            name:            r.name,
+            description:     r.description || null,
+            price:           r.price,
+            stock_quantity:  r.stock_quantity,
+            category_id:     r.categoryName ? (catMap[r.categoryName] ?? null) : null,
+          };
+        });
+
+      let errors = 0;
+
+      if (toInsert.length > 0) {
+        const { error } = await supabase.from('products').insert(toInsert);
+        if (error) { console.error(error); errors++; }
+      }
+
+      for (const row of toUpdate) {
+        const { error } = await supabase
+          .from('products')
+          .update({
+            name:           row.name,
+            description:    row.description,
+            price:          row.price,
+            stock_quantity: row.stock_quantity,
+            category_id:    row.category_id,
+          })
+          .eq('id', row.id);
+        if (error) { console.error(error); errors++; }
+      }
+
+      if (errors === 0) {
+        toast.success(`✅ تم الاستيراد: ${toInsert.length} منتج جديد، ${toUpdate.length} تم تحديثه`);
+      } else {
+        toast.warning(`تم الاستيراد مع ${errors} خطأ. راجع الكونسول للتفاصيل`);
+      }
+
+      setImportDialogOpen(false);
+      setImportRows([]);
+      setImportFileName('');
+      await loadProducts();
+      await loadCategories();
+    } catch (err) {
+      console.error(err);
+      toast.error('حدث خطأ أثناء الاستيراد');
+    }
+    setImportLoading(false);
+  };
+
   const getCategoryName = (categoryId: string | null) => {
     if (!categoryId) return null;
     return categories.find(c => c.id === categoryId)?.name || null;
@@ -483,6 +664,11 @@ const Products = () => {
           <Button variant="outline" className="gap-2" onClick={() => setPrintDialogOpen(true)}>
             <Printer className="h-4 w-4" />
             طباعة الباركود
+          </Button>
+          {/* ── Import from Excel ── */}
+          <Button variant="outline" className="gap-2 border-emerald-500/60 text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-950" onClick={() => setImportDialogOpen(true)}>
+            <Upload className="h-4 w-4" />
+            استيراد Excel
           </Button>
           <Dialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) resetForm(); }}>
             <DialogTrigger asChild>
@@ -726,6 +912,133 @@ const Products = () => {
                 </div>
               ))}
             </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Import from Excel Dialog ── */}
+      <Dialog open={importDialogOpen} onOpenChange={(open) => { setImportDialogOpen(open); if (!open) { setImportRows([]); setImportFileName(''); } }}>
+        <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col" dir="rtl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-lg">
+              <FileSpreadsheet className="h-5 w-5 text-emerald-600" />
+              استيراد منتجات من Excel
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4 overflow-y-auto flex-1">
+            {/* Step 1: Download template */}
+            <div className="rounded-lg border border-blue-200 bg-blue-50 dark:bg-blue-950/30 dark:border-blue-800 p-4">
+              <p className="font-semibold text-blue-800 dark:text-blue-300 mb-1 flex items-center gap-2">
+                <Download className="h-4 w-4" />
+                الخطوة الأولى: حمّل النموذج
+              </p>
+              <p className="text-sm text-blue-700 dark:text-blue-400 mb-3">
+                حمّل ملف النموذج، أدخل بيانات المنتجات بنفس أعمدته، ثم ارفعه أدناه.
+              </p>
+              <div className="text-xs text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-900/50 rounded p-2 mb-3 font-mono space-y-0.5">
+                <div>📌 الكود | السعر | الاسم | السعر/عدد الثري | التصنيف | الكمية (قطع ليس ثريهات)</div>
+              </div>
+              <Button size="sm" variant="outline" onClick={downloadTemplate} className="gap-2 border-blue-400 text-blue-700 hover:bg-blue-100">
+                <Download className="h-4 w-4" />
+                تحميل نموذج Excel
+              </Button>
+            </div>
+
+            {/* Step 2: Upload file */}
+            <div className="rounded-lg border border-dashed border-muted-foreground/40 p-5 text-center hover:border-emerald-500 transition-colors cursor-pointer"
+              onClick={() => fileInputRef.current?.click()}>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".xlsx,.xls,.csv"
+                className="hidden"
+                onChange={handleFileUpload}
+              />
+              <Upload className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
+              {importFileName ? (
+                <div>
+                  <p className="font-medium text-emerald-700 dark:text-emerald-400">{importFileName}</p>
+                  <p className="text-sm text-muted-foreground">{importRows.length} منتج جاهز للاستيراد</p>
+                </div>
+              ) : (
+                <div>
+                  <p className="font-medium">اضغط لرفع ملف Excel</p>
+                  <p className="text-xs text-muted-foreground mt-1">.xlsx / .xls / .csv</p>
+                </div>
+              )}
+            </div>
+
+            {/* Preview table */}
+            {importRows.length > 0 && (
+              <div>
+                <p className="text-sm font-semibold mb-2 flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                  معاينة البيانات ({importRows.length} منتج)
+                </p>
+                <div className="border rounded-lg overflow-auto max-h-56">
+                  <table className="w-full text-sm">
+                    <thead className="bg-muted">
+                      <tr>
+                        <th className="text-right px-3 py-2 font-semibold">الكود</th>
+                        <th className="text-right px-3 py-2 font-semibold">الاسم</th>
+                        <th className="text-right px-3 py-2 font-semibold">السعر</th>
+                        <th className="text-right px-3 py-2 font-semibold">السعر/ثري</th>
+                        <th className="text-right px-3 py-2 font-semibold">التصنيف</th>
+                        <th className="text-right px-3 py-2 font-semibold">الكمية</th>
+                        <th className="text-right px-3 py-2 font-semibold">الحالة</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {importRows.map((row, i) => {
+                        const isExisting = products.some((p) => p.code === row.code);
+                        return (
+                          <tr key={i} className={`border-t ${isExisting ? 'bg-amber-50 dark:bg-amber-950/20' : ''}`}>
+                            <td className="px-3 py-1.5 font-mono font-bold">{row.code}</td>
+                            <td className="px-3 py-1.5">{row.name}</td>
+                            <td className="px-3 py-1.5">{row.price} ج.م</td>
+                            <td className="px-3 py-1.5 text-muted-foreground">{row.description || '—'}</td>
+                            <td className="px-3 py-1.5">{row.categoryName || '—'}</td>
+                            <td className="px-3 py-1.5">{row.stock_quantity}</td>
+                            <td className="px-3 py-1.5">
+                              {isExisting ? (
+                                <Badge variant="outline" className="text-amber-600 border-amber-400 text-xs">تحديث</Badge>
+                              ) : (
+                                <Badge variant="outline" className="text-emerald-600 border-emerald-400 text-xs">جديد</Badge>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+                {importRows.some((r) => products.some((p) => p.code === r.code)) && (
+                  <p className="text-xs text-amber-600 mt-2 flex items-center gap-1">
+                    <AlertCircle className="h-3 w-3" />
+                    الصفوف بالخلفية الصفراء موجودة بالفعل وسيتم تحديثها
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Footer buttons */}
+          <div className="flex gap-3 pt-4 border-t mt-4">
+            <Button
+              onClick={handleImportSubmit}
+              disabled={importRows.length === 0 || importLoading}
+              className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white gap-2"
+            >
+              {importLoading ? (
+                <><Loader2 className="h-4 w-4 animate-spin" />جاري الاستيراد...</>
+              ) : (
+                <><Upload className="h-4 w-4" />استيراد {importRows.length > 0 ? `(${importRows.length} منتج)` : ''}</>
+              )}
+            </Button>
+            <Button variant="outline" onClick={() => setImportDialogOpen(false)} className="flex-1">
+              إلغاء
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
