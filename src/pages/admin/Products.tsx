@@ -51,6 +51,7 @@ const Products = () => {
   const [printDialogOpen, setPrintDialogOpen] = useState(false);
   const [selectedForPrint, setSelectedForPrint] = useState<Set<string>>(new Set());
   const [printSearchCode, setPrintSearchCode] = useState('');
+  const [printCategoryFilter, setPrintCategoryFilter] = useState<string>('all');
   const [rangeStart, setRangeStart] = useState('');
   const [rangeEnd, setRangeEnd] = useState('');
   const [categoryDialogOpen, setCategoryDialogOpen] = useState(false);
@@ -124,12 +125,15 @@ const Products = () => {
     return matchesSearch && matchesCategory;
   });
 
-  const printFilteredProducts = printSearchCode
-    ? products.filter((p) =>
-        p.code.toLowerCase().includes(printSearchCode.toLowerCase()) ||
-        p.name.toLowerCase().includes(printSearchCode.toLowerCase())
-      )
-    : products;
+  const printFilteredProducts = products.filter((p) => {
+    const matchesSearch = !printSearchCode ||
+      p.code.toLowerCase().includes(printSearchCode.toLowerCase()) ||
+      p.name.toLowerCase().includes(printSearchCode.toLowerCase());
+    const matchesCategory =
+      printCategoryFilter === 'all' ||
+      (printCategoryFilter === 'uncategorized' ? !p.category_id : p.category_id === printCategoryFilter);
+    return matchesSearch && matchesCategory;
+  });
 
   const handleCreateCategory = async () => {
     if (!newCategoryName.trim() || !activeVersion) return;
@@ -887,12 +891,48 @@ const Products = () => {
       </Dialog>
 
       {/* Print Selection Dialog */}
-      <Dialog open={printDialogOpen} onOpenChange={(open) => { setPrintDialogOpen(open); if (!open) setPrintSearchCode(''); }}>
-        <DialogContent className="max-w-lg">
+      <Dialog open={printDialogOpen} onOpenChange={(open) => { setPrintDialogOpen(open); if (!open) { setPrintSearchCode(''); setPrintCategoryFilter('all'); } }}>
+        <DialogContent className="max-w-xl max-h-[90vh] flex flex-col" dir="rtl">
           <DialogHeader>
             <DialogTitle>طباعة الباركود</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4">
+          <div className="space-y-3 overflow-y-auto flex-1">
+
+            {/* Category filter badges */}
+            <div>
+              <p className="text-xs text-muted-foreground mb-1.5 font-medium">فلتر بالتصنيف:</p>
+              <div className="flex flex-wrap gap-1.5">
+                <Badge
+                  variant={printCategoryFilter === 'all' ? 'default' : 'outline'}
+                  className="cursor-pointer px-3 py-1"
+                  onClick={() => { setPrintCategoryFilter('all'); setSelectedForPrint(new Set()); }}
+                >
+                  الكل ({products.length})
+                </Badge>
+                {categories.map((cat) => {
+                  const count = products.filter((p) => p.category_id === cat.id).length;
+                  return (
+                    <Badge
+                      key={cat.id}
+                      variant={printCategoryFilter === cat.id ? 'default' : 'outline'}
+                      className="cursor-pointer px-3 py-1"
+                      onClick={() => { setPrintCategoryFilter(cat.id); setSelectedForPrint(new Set()); }}
+                    >
+                      {cat.name} ({count})
+                    </Badge>
+                  );
+                })}
+                <Badge
+                  variant={printCategoryFilter === 'uncategorized' ? 'default' : 'outline'}
+                  className="cursor-pointer px-3 py-1"
+                  onClick={() => { setPrintCategoryFilter('uncategorized'); setSelectedForPrint(new Set()); }}
+                >
+                  بدون تصنيف ({products.filter((p) => !p.category_id).length})
+                </Badge>
+              </div>
+            </div>
+
+            {/* Search */}
             <div className="relative">
               <Search className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
@@ -903,33 +943,61 @@ const Products = () => {
                 dir="rtl"
               />
             </div>
-            <div className="flex items-center gap-2 p-3 border rounded-lg bg-muted/50">
+
+            {/* Actions row */}
+            <div className="flex flex-wrap items-center gap-2 p-3 border rounded-lg bg-muted/50">
               <Label className="shrink-0 text-sm">من</Label>
-              <Input type="number" placeholder="مثال: 1000" value={rangeStart} onChange={(e) => setRangeStart(e.target.value)} className="w-28" dir="ltr" />
+              <Input type="number" placeholder="1000" value={rangeStart} onChange={(e) => setRangeStart(e.target.value)} className="w-24" dir="ltr" />
               <Label className="shrink-0 text-sm">إلى</Label>
-              <Input type="number" placeholder="مثال: 1010" value={rangeEnd} onChange={(e) => setRangeEnd(e.target.value)} className="w-28" dir="ltr" />
+              <Input type="number" placeholder="1010" value={rangeEnd} onChange={(e) => setRangeEnd(e.target.value)} className="w-24" dir="ltr" />
               <Button onClick={printRangeLabels} size="sm" className="shrink-0">
                 <Printer className="h-4 w-4 ml-1" />
                 طباعة
               </Button>
-              <Button variant="outline" onClick={toggleSelectAll} className="gap-2">
-                {selectedForPrint.size === printFilteredProducts.length ? <CheckSquare className="h-4 w-4" /> : <Square className="h-4 w-4" />}
-                تحديد الكل
-              </Button>
-              <Button variant="outline" onClick={printAllLabels}>طباعة الكل ({printFilteredProducts.length})</Button>
-              <Button onClick={printSelectedLabels} disabled={selectedForPrint.size === 0}>طباعة المحدد ({selectedForPrint.size})</Button>
             </div>
+
+            <div className="flex flex-wrap gap-2">
+              <Button variant="outline" onClick={toggleSelectAll} className="gap-2 flex-1">
+                {selectedForPrint.size === printFilteredProducts.length && printFilteredProducts.length > 0
+                  ? <><CheckSquare className="h-4 w-4" />إلغاء تحديد الكل</>
+                  : <><Square className="h-4 w-4" />تحديد الكل</>}
+              </Button>
+              <Button
+                className="gap-2 flex-1 bg-blue-600 hover:bg-blue-700 text-white"
+                onClick={printAllLabels}
+              >
+                <Printer className="h-4 w-4" />
+                طباعة كل المعروض ({printFilteredProducts.length})
+              </Button>
+              <Button
+                onClick={printSelectedLabels}
+                disabled={selectedForPrint.size === 0}
+                className="gap-2 flex-1"
+              >
+                <Printer className="h-4 w-4" />
+                طباعة المحدد ({selectedForPrint.size})
+              </Button>
+            </div>
+
+            {/* Product list */}
             <div className="max-h-60 overflow-y-auto border rounded-lg">
-              {printFilteredProducts.map((product) => (
-                <div key={product.id} className="flex items-center gap-3 p-3 hover:bg-muted cursor-pointer border-b last:border-b-0" onClick={() => toggleSelectProduct(product.id)}>
-                  {selectedForPrint.has(product.id) ? <CheckSquare className="h-5 w-5 text-primary" /> : <Square className="h-5 w-5 text-muted-foreground" />}
-                  <div className="flex-1">
-                    <p className="font-medium">{product.name}</p>
-                    <p className="text-sm text-muted-foreground">#{product.code}</p>
+              {printFilteredProducts.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground text-sm">لا توجد منتجات</div>
+              ) : (
+                printFilteredProducts.map((product) => (
+                  <div key={product.id} className="flex items-center gap-3 p-3 hover:bg-muted cursor-pointer border-b last:border-b-0" onClick={() => toggleSelectProduct(product.id)}>
+                    {selectedForPrint.has(product.id) ? <CheckSquare className="h-5 w-5 text-primary" /> : <Square className="h-5 w-5 text-muted-foreground" />}
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium truncate">{product.name}</p>
+                      <p className="text-sm text-muted-foreground">#{product.code}</p>
+                    </div>
+                    {getCategoryName(product.category_id) && (
+                      <Badge variant="secondary" className="text-xs shrink-0">{getCategoryName(product.category_id)}</Badge>
+                    )}
+                    <p className="font-bold shrink-0">{product.price} ج.م</p>
                   </div>
-                  <p className="font-bold">{product.price} ج.م</p>
-                </div>
-              ))}
+                ))
+              )}
             </div>
           </div>
         </DialogContent>
