@@ -297,10 +297,16 @@ const Products = () => {
 
   const printAllLabels = async () => {
     try {
+      const getBaseNum = (code: string) => parseInt(code.split('/')[0].trim().replace(/\D/g, ''));
+      const getSuffix  = (code: string) => parseInt(code.split('/')[1] ?? '0') || 0;
+
       const sortedProducts = [...printFilteredProducts].sort((a, b) => {
-        const codeA = a.code.replace(/\D/g, '');
-        const codeB = b.code.replace(/\D/g, '');
-        if (codeA && codeB) return parseInt(codeA) - parseInt(codeB);
+        const baseA = getBaseNum(a.code);
+        const baseB = getBaseNum(b.code);
+        if (!isNaN(baseA) && !isNaN(baseB)) {
+          if (baseA !== baseB) return baseA - baseB;
+          return getSuffix(a.code) - getSuffix(b.code);
+        }
         return a.code.localeCompare(b.code);
       });
       const labelData = await Promise.all(
@@ -324,12 +330,26 @@ const Products = () => {
       return;
     }
     try {
+      // Extract the base number from codes like "1500/1", "1500/2", "1500" → 1500
+      const getBaseNum = (code: string): number => {
+        const base = code.split('/')[0].trim();
+        return parseInt(base.replace(/\D/g, ''));
+      };
+
       const rangeProducts = products
         .filter(p => {
-          const num = parseInt(p.code.replace(/\D/g, ''));
+          const num = getBaseNum(p.code);
           return !isNaN(num) && num >= start && num <= end;
         })
-        .sort((a, b) => parseInt(a.code.replace(/\D/g, '')) - parseInt(b.code.replace(/\D/g, '')));
+        .sort((a, b) => {
+          const baseA = getBaseNum(a.code);
+          const baseB = getBaseNum(b.code);
+          if (baseA !== baseB) return baseA - baseB;
+          // Same base → sort by suffix (e.g. /1 < /2)
+          const suffixA = parseInt(a.code.split('/')[1] ?? '0') || 0;
+          const suffixB = parseInt(b.code.split('/')[1] ?? '0') || 0;
+          return suffixA - suffixB;
+        });
       if (rangeProducts.length === 0) {
         toast.error('لا توجد منتجات في هذا النطاق');
         return;
