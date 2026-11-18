@@ -480,7 +480,8 @@ const Products = () => {
             name:           r[idxName]?.toString().trim() ?? '',
             description:    idxDesc  !== -1 ? r[idxDesc]?.toString().trim()  : '',
             categoryName:   idxCat   !== -1 ? r[idxCat]?.toString().trim()   : '',
-            stock_quantity: idxQty   !== -1 ? parseInt(r[idxQty]?.toString()) || 0 : 0,
+            // Use Number() so that 0 is preserved (parseInt(0) || 0 = 0 but be explicit)
+            stock_quantity: idxQty   !== -1 ? (r[idxQty] === '' || r[idxQty] === null || r[idxQty] === undefined ? 0 : Number(r[idxQty]) || 0) : 0,
           }));
 
         setImportRows(parsed);
@@ -553,11 +554,23 @@ const Products = () => {
           };
         });
 
+      let inserted_count = 0;
+      let updated_count = 0;
       let errors = 0;
 
-      if (toInsert.length > 0) {
-        const { error } = await supabase.from('products').insert(toInsert);
-        if (error) { console.error(error); errors++; }
+      const total = toInsert.length + toUpdate.length;
+      let done = 0;
+
+      // Insert new products one-by-one so a single failure doesn't block the rest
+      for (const row of toInsert) {
+        const { error } = await supabase.from('products').insert(row);
+        done++;
+        if (error) {
+          console.error(`Failed to insert [${row.code}]:`, error.message);
+          errors++;
+        } else {
+          inserted_count++;
+        }
       }
 
       for (const row of toUpdate) {
@@ -571,13 +584,19 @@ const Products = () => {
             category_id:    row.category_id,
           })
           .eq('id', row.id);
-        if (error) { console.error(error); errors++; }
+        done++;
+        if (error) {
+          console.error(`Failed to update [${row.code}]:`, error.message);
+          errors++;
+        } else {
+          updated_count++;
+        }
       }
 
       if (errors === 0) {
-        toast.success(`✅ تم الاستيراد: ${toInsert.length} منتج جديد، ${toUpdate.length} تم تحديثه`);
+        toast.success(`✅ تم الاستيراد: ${inserted_count} منتج جديد، ${updated_count} تم تحديثه`);
       } else {
-        toast.warning(`تم الاستيراد مع ${errors} خطأ. راجع الكونسول للتفاصيل`);
+        toast.warning(`تم الاستيراد جزئياً: ${inserted_count} جديد، ${updated_count} محدّث — فشل ${errors} منتج (راجع الكونسول)`);
       }
 
       setImportDialogOpen(false);
@@ -1031,7 +1050,7 @@ const Products = () => {
               className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white gap-2"
             >
               {importLoading ? (
-                <><Loader2 className="h-4 w-4 animate-spin" />جاري الاستيراد...</>
+                <><Loader2 className="h-4 w-4 animate-spin" />جاري الاستيراد... يرجى الانتظار</>
               ) : (
                 <><Upload className="h-4 w-4" />استيراد {importRows.length > 0 ? `(${importRows.length} منتج)` : ''}</>
               )}
