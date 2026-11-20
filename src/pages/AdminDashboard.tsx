@@ -175,7 +175,7 @@ const AdminDashboard = () => {
             </div>
           </div>
 
-          {sidebarOpen && <VersionSelector />}
+          {sidebarOpen && <VersionSelector canManageVersions={isAdmin || staffPermissions.includes('manage-versions')} />}
           
           <nav className="flex-1 p-4 space-y-2 min-w-[256px] lg:min-w-0 overflow-y-auto">
             {navItems.map((item) => {

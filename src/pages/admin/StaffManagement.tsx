@@ -33,8 +33,8 @@ const AVAILABLE_PERMISSIONS = [
   { key: 'product-report', label: 'تقرير المنتجات' },
   { key: 'orders-progress', label: 'تقدم الطلبات' },
   { key: 'sales-control', label: 'التحكم بالبيع' },
+  { key: 'manage-versions', label: '🔄 إدارة النسخ (تبديل / إنشاء)' },
 ];
-
 const StaffManagement = () => {
   const [staff, setStaff] = useState<StaffMember[]>([]);
   const [loading, setLoading] = useState(true);
